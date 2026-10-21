@@ -65,3 +65,10 @@ Auth / ops:
 2. Fix §5 items 1–7 (money/permissions/IST snapshots), then 8–10 (cron), each as a small commit.
 3. Add minimal tests around transactions, expense approval, bank balance and reconciliation.
 4. Supabase/Render setup + dry-run restore.
+
+## 9. Database backup (2026-10-21)
+- Live DB = Supabase project `vfzrfkzkenqjzhvilgqp`. Direct host (`db.<ref>.supabase.co`) is IPv6-only and does not resolve from this PC; use the **Mumbai session pooler** `aws-1-ap-south-1.pooler.supabase.com:5432`, user `postgres.vfzrfkzkenqjzhvilgqp`. Port 6543 pooler can't be used for pg_dump.
+- Backup `rks_20261021_184714` stored in `D:ecovery`, `D:\shop-rksackups`, `D:\shop-rks-qenbelackups` (git-ignored). Details/restore steps: `D:ecovery\README.md`; script: `D:ecoveryackup-db.sh` (credentials in `D:ecovery\.supabase_conn` / `.supabase_pw`, outside git).
+- Verified: checksums OK in all 3 copies; row counts per table in the dump equal live (18 tables). A full test-restore into a scratch Postgres was NOT completed (Docker Desktop stopped responding) — do that dry run before cutover.
+- `_prisma_migrations` has 14 rows in live, so the live DB was migrated with `prisma migrate` at some point (relevant to the `migrate deploy` question in section 6).
+- Re-run the backup right before cutover. The DB password was shared in chat, so rotate it after the migration.

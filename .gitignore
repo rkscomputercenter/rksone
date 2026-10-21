@@ -17,3 +17,6 @@ local.properties
 android-native/build/
 .gradle/
 backend/logs/
+
+# Local database backups — contain data and password hashes
+backups/
