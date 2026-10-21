@@ -1,0 +1,77 @@
+# ════════════════════════════════════════════════════════════════════
+# Render Blueprint — rks-qenbel
+# https://render.com/docs/blueprint-spec
+#
+# HOW TO USE:
+#   1. Push this file to your GitHub repo (main branch)
+#   2. In Render Dashboard → New → Blueprint
+#   3. Connect your GitHub repo
+#   4. Render will auto-detect this file and create the service
+#   5. Set the secret env vars (DATABASE_URL, ALLOWED_ORIGINS) manually
+#      in Render Dashboard → Environment after first deploy
+# ════════════════════════════════════════════════════════════════════
+
+services:
+  - type: web
+    name: rks-qenbel
+    runtime: docker
+
+    # Path to the combined root-level Dockerfile
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+
+    # Render free tier — Singapore is closest to India
+    plan: free
+    region: singapore
+
+    # Health check — Render uses this to confirm the container is alive
+    healthCheckPath: /api/health
+
+    # Auto-deploy on every push to main branch
+    autoDeploy: true
+
+    # ── Environment Variables ───────────────────────────────────────
+    envVars:
+      # Node.js environment
+      - key: NODE_ENV
+        value: production
+
+      # Port — Render injects this automatically.
+      # 10000 is Render's default. Your app reads process.env.PORT.
+      - key: PORT
+        value: 10000
+
+      # Timezone
+      - key: TZ
+        value: Asia/Kolkata
+
+      # JWT config
+      - key: JWT_EXPIRES_IN
+        value: 8h
+
+      # Log retention
+      - key: LOG_RETENTION_DAYS
+        value: 60
+
+      # ── SECRETS — Set these manually in Render Dashboard ────────
+      #
+      # DATABASE_URL: Copy from Supabase → Settings → Database
+      #   Format (direct):      postgresql://postgres.[ref]:[pass]@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres
+      #   Format (pooler):      postgresql://postgres.[ref]:[pass]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
+      #
+      # Recommended: Use the Transaction pooler (port 6543) for Render's free tier
+      # since the container may restart frequently.
+      #
+      - key: DATABASE_URL
+        sync: false
+
+      # JWT_SECRET: A long random secret string (min 32 chars)
+      # Generate one: openssl rand -base64 48
+      - key: JWT_SECRET
+        sync: false
+
+      # ALLOWED_ORIGINS: Your Render app public URL
+      # Example: https://rks.qenbel.site
+      # Add more origins comma-separated if needed
+      - key: ALLOWED_ORIGINS
+        sync: false

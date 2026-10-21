@@ -1,0 +1,216 @@
+/**
+ * RKS Backend — Main Application Entry Point
+ *
+ * CRITICAL: Set timezone BEFORE any imports
+ * Fix #1: IST enforcement at process level
+ */
+process.env.TZ = 'Asia/Kolkata';
+
+import express from 'express';
+import path from 'path';
+import helmet from 'helmet';
+import cors from 'cors';
+import compression from 'compression';
+import morgan from 'morgan';
+import { stream, logger } from './utils/logger';
+import rateLimit from 'express-rate-limit';
+
+import { env } from './config/env';
+import { globalErrorHandler } from './utils/response';
+
+// Route imports
+import authRoutes from './modules/auth/auth.routes';
+import userRoutes from './modules/users/users.routes';
+import serviceRoutes from './modules/services/services.routes';
+import transactionRoutes from './modules/transactions/transactions.routes';
+import expenseRoutes from './modules/expenses/expenses.routes';
+import analyticsRoutes from './modules/analytics/analytics.routes';
+import logsRoutes from './modules/logs/logs.routes';
+import healthRoutes from './modules/health/health.routes';
+import bankRoutes from './modules/banks/banks.routes';
+import systemRoutes from './modules/system/system.routes';
+import expenseCategoryRoutes from './modules/expenses/expense-categories.routes';
+import rolesRoutes from './modules/roles/roles.routes';
+
+// Background jobs
+import { initCronJobs } from './modules/system/cron.service';
+
+const app = express();
+
+// ── Security ──────────────────────────────────────────────────────
+app.use(helmet());
+
+// Fix #6: CORS restricted to private LAN subnets only
+const PRIVATE_SUBNET_REGEX = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/;
+
+const allowedOrigins = env.ALLOWED_ORIGINS
+  ? env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+  : [];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (same-machine, mobile apps, Postman in LAN)
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    // Allow explicitly configured origins
+    if (allowedOrigins.length > 0 && allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    // Allow any private subnet origin or development tunnels
+    try {
+      const url = new URL(origin);
+      const hostname = url.hostname;
+      if (
+        PRIVATE_SUBNET_REGEX.test(hostname) || 
+        hostname === 'localhost' || 
+        hostname === '127.0.0.1' ||
+        hostname.endsWith('.trycloudflare.com') ||
+        hostname.endsWith('.loca.lt') ||
+        hostname === 'qenbel.site' ||
+        hostname.endsWith('.qenbel.site')
+      ) {
+        callback(null, true);
+        return;
+      }
+    } catch {
+      // invalid URL
+    }
+
+    callback(new Error(`CORS: Origin ${origin} not allowed`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+// Rate limiting — 100 requests per 15 minutes per IP
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many requests, please try again later.' },
+});
+app.use('/api/', limiter);
+
+// ── Middleware ─────────────────────────────────────────────────────
+app.use(compression({ filter: (req, res) => { if (req.url.endsWith('.apk')) return false; return compression.filter(req, res); } }));
+app.use(morgan('combined', { stream }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+// ── Routes ─────────────────────────────────────────────────────────
+app.use('/api/health', healthRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/services', serviceRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/expenses', expenseRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/logs', logsRoutes);
+app.use('/api/banks', bankRoutes);
+app.use('/api/system', systemRoutes);
+app.use('/api/expense-categories', expenseCategoryRoutes);
+app.use('/api/roles', rolesRoutes);
+
+// ── Serve Frontend Static Files (Production) ──────────────────────
+// In production, Express serves the React build from /app/public.
+// __dirname = /app/dist  →  ../public = /app/public
+// This MUST come after all /api routes so API calls are not intercepted.
+if (env.NODE_ENV === 'production') {
+  const frontendPath = path.join(__dirname, '../public');
+
+  // Serve static assets (JS, CSS, images, fonts)
+  app.use(express.static(frontendPath, {
+    etag: true,
+    setHeaders: (res, pathStr) => {
+      if (pathStr.includes('/assets/') || pathStr.includes('\\assets\\')) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000');
+      } else {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+    }
+  }));
+
+  // SPA fallback — any non-API GET route serves index.html
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(frontendPath, 'index.html'));
+  });
+}
+
+// 404 handler — catches unmatched API routes
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: `Route ${req.method} ${req.path} not found` });
+});
+
+// Global error handler
+app.use(globalErrorHandler);
+
+// ── Start Server ───────────────────────────────────────────────────
+import { createServer } from 'http';
+import { initSocket } from './config/socket';
+
+const httpServer = createServer(app);
+const io = initSocket(httpServer);
+
+const PORT = env.PORT;
+
+httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+  console.log(` RKS Backend running on 0.0.0.0:${PORT}`);
+  console.log(` Environment: ${env.NODE_ENV}`);
+  console.log(` Timezone: ${process.env.TZ}`);
+  console.log(` Time: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+  console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+
+  // Start cron jobs
+  
+  // One-time cleanup for salary records
+  
+  // One-time cleanup for orphaned negative transactions
+  (async () => {
+    try {
+      const { prisma } = require('./config/prisma');
+      const negativeTxs = await prisma.transaction.findMany({
+        where: { totalPrice: { lt: 0 } }
+      });
+      if (negativeTxs.length > 0) {
+        console.log(`Found ${negativeTxs.length} negative transactions to clean up.`);
+        for (const tx of negativeTxs) {
+          try {
+            await prisma.transaction.delete({ where: { id: tx.id } });
+            console.log(`Successfully deleted negative transaction ${tx.id} (${tx.totalPrice})`);
+          } catch (e: any) {
+            console.error(`Failed to clean up negative transaction ${tx.id}:`, e.message);
+          }
+        }
+      }
+    } catch (e: any) {
+      console.error('Failed negative transaction cleanup routine:', e.message);
+    }
+  })();
+
+    initCronJobs();
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received — shutting down gracefully...');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received — shutting down...');
+  process.exit(0);
+});
+
+export default app;
+
+
+

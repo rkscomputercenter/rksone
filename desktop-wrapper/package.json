@@ -1,0 +1,33 @@
+{
+  "name": "rks-desktop",
+  "version": "1.0.0",
+  "description": "Desktop wrapper for RKS Shop",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder -w"
+  },
+  "build": {
+    "appId": "com.shoprks.desktop",
+    "productName": "RKS Shop",
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "license": "license.txt"
+    }
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^43.1.1",
+    "electron-builder": "^26.15.3",
+    "jimp": "^0.16.1",
+    "png-to-ico": "^3.0.2"
+  }
+}

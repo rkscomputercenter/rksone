@@ -1,0 +1,19 @@
+.env
+node_modules/
+dist/
+*.log
+.DS_Store
+Thumbs.db
+Password/
+
+# Release artifacts and signing material — never commit
+*.apk
+*.aab
+*.exe
+*.keystore
+*.jks
+keystore.properties
+local.properties
+android-native/build/
+.gradle/
+backend/logs/

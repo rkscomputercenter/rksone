@@ -1,0 +1,120 @@
+version: "3.9"
+
+networks:
+  rks-network:
+    driver: bridge
+
+volumes:
+  rks-pgdata:
+    driver: local
+  rks-backups:
+    driver: local
+
+services:
+  # ─────────────────────────────────────────────
+  # PostgreSQL 16 — Primary Database
+  # ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: rks-postgres
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGTZ: Asia/Kolkata
+      TZ: Asia/Kolkata
+    volumes:
+      - rks-pgdata:/var/lib/postgresql/data
+    networks:
+      - rks-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    command: >
+      postgres
+        -c timezone=Asia/Kolkata
+        -c log_timezone=Asia/Kolkata
+
+  # ─────────────────────────────────────────────
+  # Backend — Node.js / Express API
+  # ─────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rks-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      TZ: Asia/Kolkata
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      PORT: ${PORT}
+      LOG_RETENTION_DAYS: ${LOG_RETENTION_DAYS}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+    ports:
+      - "${PORT}:${PORT}"
+    networks:
+      - rks-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${PORT}/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─────────────────────────────────────────────
+  # Frontend — React (built) served by nginx
+  # ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: rks-frontend
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Kolkata
+    ports:
+      - "5000:80"
+    networks:
+      - rks-network
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # ─────────────────────────────────────────────
+  # Backup — Daily pg_dump to named volume
+  # ─────────────────────────────────────────────
+  backup:
+    build:
+      context: ./backup
+      dockerfile: Dockerfile
+    container_name: rks-backup
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      BACKUP_DIR: ${BACKUP_DIR}
+      BACKUP_SCHEDULE_HOUR: ${BACKUP_SCHEDULE_HOUR}
+      TZ: Asia/Kolkata
+    volumes:
+      - rks-backups:/backups
+    networks:
+      - rks-network
+    depends_on:
+      postgres:
+        condition: service_healthy

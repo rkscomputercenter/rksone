@@ -1,0 +1,364 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────
+
+enum Role {
+  USER
+  MANAGER
+  ADMIN
+  SUPER_ADMIN
+  CUSTOM
+}
+
+enum Shop {
+  SHOP_COMPUTER
+  SHOP_XEROX
+}
+
+enum ServiceCategory {
+  GOVT
+  PRINTING
+  CARDS
+  OTHER
+}
+
+enum PaymentMethod {
+  CASH
+  ONLINE
+  OTHER
+  SHOP_XEROX
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ─────────────────────────────────────────────────────────
+// USERS
+// ─────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role     @default(USER)
+  customRoleId String?  @map("custom_role_id")
+  customRole   CustomRole? @relation(fields: [customRoleId], references: [id])
+  shopAccess   Shop[]   @default([SHOP_COMPUTER]) @map("shop_access")
+  isActive     Boolean  @default(true) @map("is_active")
+  isSuspended  Boolean  @default(false) @map("is_suspended")
+  bannedUntil  DateTime? @map("banned_until") @db.Timestamptz
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  transactions Transaction[]
+  expenses     Expense[]
+  logs         Log[]
+  sessions     Session[]
+  dailySnapshots UserDailyAnalyticsSnapshot[]
+  passwordResetRequests PasswordResetRequest[]
+
+  @@map("users")
+  @@index([username])
+  @@index([role])
+}
+
+model PasswordResetRequest {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  status    String   @default("PENDING") // PENDING, RESOLVED
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_requests")
+}
+
+// ─────────────────────────────────────────────────────────
+// SERVICES (Service Catalog)
+// ─────────────────────────────────────────────────────────
+
+model Service {
+  id           String          @id @default(uuid())
+  name         String
+  category     ServiceCategory
+  price        Decimal         @db.Decimal(10, 2)
+  shop         Shop            @default(SHOP_COMPUTER)
+  isActive     Boolean         @default(true) @map("is_active")
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+
+  transactions Transaction[]
+
+  @@map("services")
+  @@index([category])
+  @@index([isActive])
+}
+
+// ─────────────────────────────────────────────────────────
+// TRANSACTIONS (Income Entries)
+// ─────────────────────────────────────────────────────────
+
+model Transaction {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  serviceId  String   @map("service_id")
+  quantity      Int           @default(1)
+  unitPrice     Decimal       @db.Decimal(10, 2) @map("unit_price")
+  totalPrice    Decimal       @db.Decimal(10, 2) @map("total_price")
+  paymentMethod PaymentMethod @default(CASH) @map("payment_method")
+  shop          Shop          @default(SHOP_COMPUTER)
+  notes         String?
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@map("transactions")
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@index([serviceId])
+}
+
+// ─────────────────────────────────────────────────────────
+// EXPENSES
+// ─────────────────────────────────────────────────────────
+
+model BankAccount {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  balance   Decimal  @default(0) @db.Decimal(12, 2)
+  isCash    Boolean  @default(false) @map("is_cash")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  expenses  Expense[]
+
+  @@map("bank_accounts")
+}
+
+model Expense {
+  id        String        @id @default(uuid())
+  userId    String        @map("user_id")
+  amount    Decimal       @db.Decimal(10, 2)
+  category  String
+  shop      Shop          @default(SHOP_COMPUTER)
+  note      String?
+  status    ExpenseStatus @default(PENDING)
+  bankId    String?       @map("bank_id")
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  bank BankAccount? @relation(fields: [bankId], references: [id], onDelete: SetNull)
+
+  @@map("expenses")
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@index([status])
+  @@index([bankId])
+}
+
+model ExpenseCategory {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("expense_categories")
+}
+
+// ─────────────────────────────────────────────────────────
+// CUSTOM ROLES
+// ─────────────────────────────────────────────────────────
+
+model CustomRole {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  permissions Json     // Expected format: Record<string, { read: boolean, write: boolean }>
+  users       User[]
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("custom_roles")
+}
+
+// ─────────────────────────────────────────────────────────
+// SYSTEM & SESSIONS
+// ─────────────────────────────────────────────────────────
+
+model Session {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  loginTime  DateTime  @default(now()) @map("login_time") @db.Timestamptz
+  logoutTime DateTime? @map("logout_time") @db.Timestamptz
+  lastSeen   DateTime  @default(now()) @map("last_seen") @db.Timestamptz
+  isKicked   Boolean   @default(false) @map("is_kicked")
+  ipAddress    String?   @map("ip_address")
+  userAgent    String?   @map("user_agent")
+  refreshToken String?   @unique @map("refresh_token")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+  @@index([userId])
+  @@index([loginTime])
+}
+
+model SystemConfig {
+  id                 Int      @id @default(1)
+  maintenanceMode    Boolean  @default(false) @map("maintenance_mode")
+  maintenanceMessage String   @default("Server is under maintenance. Please try again later.") @map("maintenance_message")
+  serverMessage      String?  @map("server_message")
+  version            String   @default("1.0.0")
+
+  autoCleanupEnabled        Boolean   @default(true) @map("auto_cleanup_enabled")
+  autoCleanupDurationMonths Int       @default(3) @map("auto_cleanup_duration_months")
+  lastCleanupDate           DateTime? @map("last_cleanup_date") @db.Timestamptz
+  nextCleanupDate           DateTime? @map("next_cleanup_date") @db.Timestamptz
+
+  @@map("system_config")
+}
+
+model LoginAttempt {
+  ipAddress    String    @id @map("ip_address")
+  attempts     Int       @default(0)
+  pastBlocks   Int       @default(0) @map("past_blocks")
+  blockedUntil DateTime? @map("blocked_until") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("login_attempts")
+}
+
+// ─────────────────────────────────────────────────────────
+// AUDIT LOGS
+// ─────────────────────────────────────────────────────────
+
+model Log {
+  id        String      @id @default(uuid())
+  userId    String      @map("user_id")
+  action    AuditAction
+  tableName String      @map("table_name")
+  recordId  String      @map("record_id")
+  oldValue  Json?       @map("old_value")
+  newValue  Json?       @map("new_value")
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("logs")
+  @@index([createdAt])
+  @@index([userId])
+  @@index([tableName])
+}
+
+// ─────────────────────────────────────────────────────────
+// STORAGE MANAGEMENT & ANALYTICS SNAPSHOTS
+// ─────────────────────────────────────────────────────────
+
+model DataExport {
+  id           String   @id @default(uuid())
+  fileName     String   @map("file_name")
+  fileData     Bytes    @map("file_data")
+  status       String   @default("READY") // READY, EXPIRED
+  scheduledFor DateTime @map("scheduled_for") @db.Timestamptz
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt    DateTime @map("expires_at") @db.Timestamptz
+  
+  @@map("data_exports")
+}
+
+model DailyAnalyticsSnapshot {
+  id              String   @id @default(uuid())
+  date            DateTime @db.Date
+  shop            Shop     @default(SHOP_COMPUTER)
+  income          Decimal  @db.Decimal(12, 2)
+  cashIncome      Decimal  @db.Decimal(12, 2)
+  onlineIncome    Decimal  @db.Decimal(12, 2)
+  otherIncome     Decimal  @db.Decimal(12, 2)
+  shopXeroxIncome Decimal  @db.Decimal(12, 2)
+  expenses        Decimal  @db.Decimal(12, 2)
+  profit          Decimal  @db.Decimal(12, 2)
+  transactionCount Int     @map("transaction_count")
+
+  @@unique([date, shop])
+  @@map("daily_analytics_snapshots")
+}
+
+model UserDailyAnalyticsSnapshot {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  date            DateTime @db.Date
+  income          Decimal  @db.Decimal(12, 2)
+  cashIncome      Decimal  @db.Decimal(12, 2)
+  onlineIncome    Decimal  @db.Decimal(12, 2)
+  otherIncome     Decimal  @db.Decimal(12, 2)
+  shopXeroxIncome Decimal  @db.Decimal(12, 2)
+  expenses        Decimal  @db.Decimal(12, 2)
+  profit          Decimal  @db.Decimal(12, 2)
+  transactionCount Int     @map("transaction_count")
+  shop            Shop     @default(SHOP_COMPUTER)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, shop])
+  @@map("user_daily_analytics_snapshots")
+}
+
+// ─────────────────────────────────────────────────────────
+// SYSTEM AUTOMATIC TRANSACTIONS
+// ─────────────────────────────────────────────────────────
+
+model AutoTransaction {
+  id        String   @id @default(uuid())
+  type      String   // e.g., "CASH_RECONCILIATION", "ONLINE_RECONCILIATION"
+  amount    Decimal  @db.Decimal(12, 2)
+  date      DateTime @db.Date
+  bankName  String   @map("bank_name")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("auto_transactions")
+}
+
+// ─────────────────────────────────────────────────────────
+// SYSTEM ALERTS & NOTIFICATIONS
+// ─────────────────────────────────────────────────────────
+
+model SystemAlert {
+  id        String   @id @default(uuid())
+  type      String   // INFO, WARNING, ERROR, SUCCESS
+  source    String   // AUTO_TRANS, LOGIN_ATTEMPT, SYSTEM
+  message   String
+  ipAddress String?  @map("ip_address")
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("system_alerts")
+  @@index([createdAt])
+  @@index([isRead])
+  @@index([source])
+}
+

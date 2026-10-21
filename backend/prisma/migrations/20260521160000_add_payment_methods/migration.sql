@@ -1,0 +1,2 @@
+ALTER TYPE "PaymentMethod" ADD VALUE 'OTHER';
+ALTER TYPE "PaymentMethod" ADD VALUE 'SHOP_XEROX';
