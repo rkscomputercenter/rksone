@@ -8,6 +8,9 @@ Extracted from the code in the production folder (2026-10-21). "Intended" means 
 ## Roles
 `USER`, `MANAGER`, `ADMIN`, `SUPER_ADMIN`, `CUSTOM` (permissions per module `{read, write}` from `CustomRole`).
 - `ADMIN`/`SUPER_ADMIN` always have access to both shops; others use `User.shopAccess`.
+- Shop access is enforced in the backend on every list, report, edit, approve and delete (`utils/shop.ts`). A `?shop=` outside the user's access is refused (403); a record in another shop is treated as not found (404).
+- `CUSTOM` permissions are read from the user's `CustomRole` in the database on every request, so changes apply immediately.
+- A suspended user (`isSuspended`) is refused on every request, not only at the next login or token refresh.
 - Regular users see only their own transactions/expenses; admins see all and may filter by `userId`.
 - Regular users' expense list is always forced to today.
 - `MANAGER` is treated as admin-level only for modules `services` and `expenseCategories`.
@@ -19,14 +22,17 @@ Extracted from the code in the production folder (2026-10-21). "Intended" means 
 - Edit/delete: only **today's** records, and only own records unless admin; `SUPER_ADMIN` may edit/delete older records.
 - Updates use optimistic locking on `updatedAt` (409 on mismatch).
 - Every mutation writes an audit `Log` row atomically (`withAuditLog`).
-- Creating with an unknown `serviceName` auto-creates a service (category `OTHER`); an inactive match is reactivated.
+- Creating with `serviceName` auto-creates (category `OTHER`) or reactivates a service only for the **"Others" quick entry**, or when the user is admin-level for `services`. Any other unknown name is refused (404).
 
 ## Expenses
 - Created by a non-admin: `PENDING`, no bank deduction.
 - Created by admin+: `APPROVED` immediately, a `bankId` is required, balance must cover the amount, bank is decremented, and an extra `bank_accounts` audit row (`EXPENSE_DEDUCTION`) is written.
-- Approve (`ADMIN`+): needs `bankId`, balance must cover, decrements bank in a DB transaction, audit rows written. Reject: status only.
-- Edit: today only (SUPER_ADMIN any day); own expenses only unless SUPER_ADMIN; non-admin edits reset status to `PENDING`.
-- Delete: `SUPER_ADMIN` only.
+- Every bank deduction is one conditional UPDATE (`balance >= amount`) inside the same DB transaction as the expense change and its audit rows, so two concurrent deductions can never overdraw a bank.
+- Approve (`ADMIN`+): needs `bankId`, balance must cover, decrements bank. An expense can be approved only once (a second or concurrent approval gets 409).
+- Reject: a `PENDING` expense changes status only. Rejecting an `APPROVED` expense **refunds the bank** it was deducted from (decision 2026-10-22).
+- Edit: today only (SUPER_ADMIN any day); own expenses only unless SUPER_ADMIN; only `amount`, `category`, `note` are editable. Non-admin edits reset status to `PENDING` and, if the expense was `APPROVED`, refund the bank. An admin changing the amount of an `APPROVED` expense moves only the difference.
+- Delete: `SUPER_ADMIN` only. Deleting an `APPROVED` expense **refunds the bank** (decision 2026-10-22).
+- Bank Activity audit rows: `EXPENSE_DEDUCTION` and `EXPENSE_REFUND` (with `reason`).
 
 ## Banks
 - `CASH-BALANCE` (isCash) and `CANARA BANK` are created on demand by reconciliation. Balances change via: expense deduction, deposit, adjust, set, hard reset, and reconciliation. All changes appear in the audit log (`bank_accounts`).

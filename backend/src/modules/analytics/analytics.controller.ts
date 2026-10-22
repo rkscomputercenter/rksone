@@ -3,7 +3,8 @@ import { prisma } from '../../config/prisma';
 import { Prisma } from '@prisma/client';
 import { isAdminOrAbove } from '../../middleware/auth';
 import { getISTDayBounds, getISTMonthBounds, toISTDateString } from '../../utils/time';
-import { sendSuccess } from '../../utils/response';
+import { getShopFilter } from '../../utils/shop';
+import { sendSuccess, sendForbidden } from '../../utils/response';
 
 /**
  * Fix #3: All expense calculations use ONLY APPROVED expenses.
@@ -17,7 +18,8 @@ export async function getTodaySummary(req: Request, res: Response, next: NextFun
     const { shop } = req.query;
     const isAdmin = isAdminOrAbove(req.user!, 'analytics');
     const userId = isAdmin ? undefined : req.user!.userId;
-    const shopFilter = shop ? (shop as any) : { in: req.user!.shopAccess };
+    const shopFilter = getShopFilter(req.user!, shop);
+    if (!shopFilter) { sendForbidden(res, 'You do not have access to this shop'); return; }
 
     const [txGroups, expAgg, pendingExpenses] = await Promise.all([
       prisma.transaction.groupBy({
@@ -36,16 +38,6 @@ export async function getTodaySummary(req: Request, res: Response, next: NextFun
         },
         _sum: { amount: true },
         _count: true,
-      }),
-      prisma.expense.aggregate({
-        where: {
-          createdAt: { gte: start, lte: end },
-          status: 'APPROVED',
-          category: 'Salary',
-          ...(userId && { userId }),
-          shop: shopFilter,
-        },
-        _sum: { amount: true },
       }),
       isAdmin ? prisma.expense.count({
         where: { createdAt: { gte: start, lte: end }, status: 'PENDING', shop: shopFilter },
@@ -99,7 +91,8 @@ export async function getDailyAnalytics(req: Request, res: Response, next: NextF
     const { shop } = req.query;
     const targetUserId = isAdmin && req.query.userId ? (req.query.userId as string) : undefined;
     const userIdFilter = targetUserId ? { userId: targetUserId } : {};
-    const shopFilter = shop ? (shop as any) : { in: req.user!.shopAccess };
+    const shopFilter = getShopFilter(req.user!, shop);
+    if (!shopFilter) { sendForbidden(res, 'You do not have access to this shop'); return; }
 
     const [txGroups, expAgg, topServices, userBreakdown] = await Promise.all([
       prisma.transaction.groupBy({
@@ -247,7 +240,8 @@ export async function getMonthlyAnalytics(req: Request, res: Response, next: Nex
     const { shop } = req.query;
     const targetUserId = isAdmin && req.query.userId ? (req.query.userId as string) : undefined;
     const userIdFilter = targetUserId ? { userId: targetUserId } : {};
-    const shopFilter = shop ? (shop as any) : { in: req.user!.shopAccess };
+    const shopFilter = getShopFilter(req.user!, shop);
+    if (!shopFilter) { sendForbidden(res, 'You do not have access to this shop'); return; }
 
     const [txGroups, expAgg] = await Promise.all([
       prisma.transaction.groupBy({

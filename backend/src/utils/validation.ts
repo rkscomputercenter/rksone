@@ -123,7 +123,6 @@ export const updateExpenseSchema = z.object({
   amount: positiveDecimal.optional(),
   category: z.string().min(1).optional(),
   note: z.string().max(500).optional(),
-  shop: z.enum(['SHOP_COMPUTER', 'SHOP_XEROX']).optional(),
   updatedAt: z.string().datetime({ message: 'updatedAt required for optimistic lock' }),
 });
 

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../config/prisma';
-import { withAuditLog } from '../../utils/auditLog';
-import { sendSuccess, sendCreated, sendNotFound, sendError } from '../../utils/response';
+import { withAuditLog, writeAuditLog } from '../../utils/auditLog';
+import { sendSuccess, sendCreated, sendNotFound, sendError, HttpError } from '../../utils/response';
 
 const BANK_SELECT = {
   id: true,
@@ -196,23 +196,25 @@ export async function adjustBalance(req: Request, res: Response, next: NextFunct
     const bank = await prisma.bankAccount.findUnique({ where: { id } });
     if (!bank) { sendNotFound(res, 'Bank'); return; }
 
-    const newBalance = Number(bank.balance) + amount;
-    if (newBalance < 0) {
-      sendError(res, `Cannot adjust: balance would become negative (₹${newBalance.toFixed(2)})`, 400);
-      return;
-    }
+    // Relative, conditional update: never overwrites a concurrent reconciliation/expense change,
+    // and a decrease only applies if the balance covers it.
+    const updated = await prisma.$transaction(async (tx) => {
+      const { count } = await tx.bankAccount.updateMany({
+        where: { id, ...(amount < 0 && { balance: { gte: -amount } }) },
+        data: { balance: { increment: amount } },
+      });
+      if (count === 0) {
+        const current = await tx.bankAccount.findUnique({ where: { id } });
+        throw new HttpError(400,
+          `Cannot adjust: balance would become negative (₹${(Number(current?.balance ?? 0) + amount).toFixed(2)})`);
+      }
 
-    const updated = await withAuditLog(
-      prisma, req.user!.userId, 'UPDATE', 'bank_accounts',
-      (b) => b.id,
-      { balance: Number(bank.balance), action: amount >= 0 ? 'ADJUST_UP' : 'ADJUST_DOWN', amount, note },
-      (b) => ({ balance: Number(b.balance) }),
-      (tx) => tx.bankAccount.update({
-        where: { id },
-        data: { balance: newBalance },
-        select: BANK_SELECT,
-      })
-    );
+      const after = await tx.bankAccount.findUniqueOrThrow({ where: { id }, select: BANK_SELECT });
+      await writeAuditLog(tx, req.user!.userId, 'UPDATE', 'bank_accounts', id,
+        { balance: Number(after.balance) - amount, action: amount >= 0 ? 'ADJUST_UP' : 'ADJUST_DOWN', amount, note },
+        { balance: Number(after.balance) });
+      return after;
+    });
 
     sendSuccess(res, updated, 200, undefined, `${bank.name} balance adjusted by ₹${amount >= 0 ? '+' : ''}${amount}`);
   } catch (err) { next(err); }

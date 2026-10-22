@@ -57,13 +57,24 @@ export async function authenticate(
       return;
     }
 
-    // 1. Verify user still exists and is active
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-      select: { id: true, isActive: true, role: true, name: true, username: true, bannedUntil: true, shopAccess: true },
-    });
+    // Refresh tokens are signed with the same secret but carry no userId — never accept them here.
+    if (!payload.userId) {
+      sendUnauthorized(res, 'Invalid or expired token');
+      return;
+    }
 
-    console.log(`[AUTH DEBUG] User: ${user?.username}, Active: ${user?.isActive}, Role: ${user?.role}, SessionID: ${payload.sessionId}`);
+    // 1. Verify user still exists and is active (permissions always come from the DB, not the token)
+    const [user, session, config] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: {
+          id: true, isActive: true, isSuspended: true, role: true, name: true, username: true,
+          bannedUntil: true, shopAccess: true, customRole: { select: { permissions: true } },
+        },
+      }),
+      payload.sessionId ? prisma.session.findUnique({ where: { id: payload.sessionId } }) : null,
+      prisma.systemConfig.findUnique({ where: { id: 1 } }),
+    ]);
 
     if (!user || !user.isActive) {
       console.log(`[AUTH REJECT] Account inactive or not found: ${payload.username}`);
@@ -71,12 +82,13 @@ export async function authenticate(
       return;
     }
 
+    if (user.isSuspended) {
+      sendUnauthorized(res, 'Your account is suspended. Please contact an administrator.');
+      return;
+    }
+
     // 1.1 Check if this specific session has been kicked
     if (payload.sessionId) {
-      const session = await prisma.session.findUnique({
-        where: { id: payload.sessionId }
-      });
-      
       if (!session) {
         console.log(`[AUTH REJECT] Session not found: ${payload.sessionId}`);
         sendUnauthorized(res, 'Session not found. Please log in again.');
@@ -107,7 +119,6 @@ export async function authenticate(
     }
 
     // 2. Check for Maintenance Mode (Immunity for SUPER_ADMIN)
-    const config = await prisma.systemConfig.findUnique({ where: { id: 1 } });
     if (config?.maintenanceMode && user.role !== 'SUPER_ADMIN') {
       res.status(503).json({
         success: false,
@@ -123,6 +134,9 @@ export async function authenticate(
       role: user.role,
       name: user.name,
       sessionId: payload.sessionId,
+      ...(user.role === 'CUSTOM' && user.customRole && {
+        customPermissions: user.customRole.permissions as AuthPayload['customPermissions'],
+      }),
       shopAccess: (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') ? ['SHOP_COMPUTER', 'SHOP_XEROX'] : user.shopAccess
     };
 

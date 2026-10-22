@@ -37,6 +37,10 @@ import { initCronJobs } from './modules/system/cron.service';
 
 const app = express();
 
+// Render (and Cloudflare, if proxied) sit in front of the app. Without this, req.ip is the
+// proxy's address: every user shares one rate-limit bucket and alerts log the wrong IP.
+app.set('trust proxy', env.TRUST_PROXY_HOPS);
+
 // ── Security ──────────────────────────────────────────────────────
 app.use(helmet());
 
@@ -95,15 +99,16 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, error: 'Too many requests, please try again later.' },
+  skip: () => env.NODE_ENV === 'test',
 });
 app.use('/api/', limiter);
 
 // ── Middleware ─────────────────────────────────────────────────────
 app.use(compression({ filter: (req, res) => { if (req.url.endsWith('.apk')) return false; return compression.filter(req, res); } }));
-app.use(morgan('combined', { stream }));
+// One request log line per request (through winston); none in tests
+if (env.NODE_ENV !== 'test') app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev', { stream }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
-app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // ── Routes ─────────────────────────────────────────────────────────
 app.use('/api/health', healthRoutes);
@@ -161,7 +166,8 @@ const io = initSocket(httpServer);
 
 const PORT = env.PORT;
 
-httpServer.listen(PORT, '0.0.0.0', () => {
+// Tests import the app (supertest) without starting the server or the cron jobs
+if (env.NODE_ENV !== 'test') httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
   console.log(` RKS Backend running on 0.0.0.0:${PORT}`);
   console.log(` Environment: ${env.NODE_ENV}`);

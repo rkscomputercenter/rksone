@@ -1,17 +1,20 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../config/prisma';
 import { withAuditLog } from '../../utils/auditLog';
-import { sendSuccess, sendCreated, sendNotFound, sendError } from '../../utils/response';
+import { getShopFilter } from '../../utils/shop';
+import { sendSuccess, sendCreated, sendNotFound, sendError, sendForbidden } from '../../utils/response';
 
 export async function getAllServices(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { category, active, shop } = req.query;
+    const shopFilter = getShopFilter(req.user!, shop);
+    if (!shopFilter) { sendForbidden(res, 'You do not have access to this shop'); return; }
 
     const services = await prisma.service.findMany({
       where: {
         ...(category && { category: category as any }),
         ...(active !== undefined && { isActive: active === 'true' }),
-        shop: shop ? (shop as any) : { in: req.user!.shopAccess },
+        shop: shopFilter,
       },
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });

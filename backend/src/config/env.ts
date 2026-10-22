@@ -9,6 +9,8 @@ const envSchema = z.object({
   TZ: z.string().default('Asia/Kolkata'),
   LOG_RETENTION_DAYS: z.string().transform(Number).default('60'),
   ALLOWED_ORIGINS: z.string().optional().default(''),
+  // Number of reverse proxies in front of the app (Render = 1; Render behind Cloudflare = 2)
+  TRUST_PROXY_HOPS: z.string().transform(Number).default('1'),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -64,6 +64,17 @@ export function sendValidationError(res: Response, message: string): void {
   sendError(res, message, 422);
 }
 
+/**
+ * Error with an HTTP status. Throw it inside a prisma.$transaction() callback to
+ * roll the transaction back and answer with `statusCode` instead of 500.
+ */
+export class HttpError extends Error {
+  constructor(public statusCode: number, message: string) {
+    super(message);
+    this.name = 'HttpError';
+  }
+}
+
 // Global error handler middleware
 export function globalErrorHandler(
   err: Error,
@@ -71,6 +82,11 @@ export function globalErrorHandler(
   res: Response,
   _next: NextFunction
 ): void {
+  if (err instanceof HttpError) {
+    sendError(res, err.message, err.statusCode);
+    return;
+  }
+
   console.error(`[ERROR] ${req.method} ${req.path}:`, err.message);
 
   if (err.name === 'PrismaClientKnownRequestError') {

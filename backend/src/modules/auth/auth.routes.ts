@@ -7,6 +7,8 @@ const router = Router();
 
 // POST /api/auth/login — public
 import slowDown from 'express-slow-down';
+import { ipKeyGenerator } from 'express-rate-limit';
+import { env } from '../../config/env';
 
 // Progressive delay: start delaying after 4 failed/successful attempts
 // 5th attempt = 2s delay, 6th = 4s, 7th = 6s... (up to max 20s delay)
@@ -17,8 +19,10 @@ const loginSpeedLimiter = slowDown({
   delayMs: (hits) => (hits - 4) * 2000, // Add 2s delay per extra hit
   maxDelayMs: 20000, // Max 20 second delay
   keyGenerator: (req) => {
-    return `${req.ip}_${req.body?.username?.toLowerCase()?.trim() || 'unknown'}`;
-  }
+    // ipKeyGenerator groups IPv6 addresses by /56 so one client can't rotate addresses to dodge the delay
+    return `${ipKeyGenerator(req.ip || 'unknown')}_${req.body?.username?.toLowerCase()?.trim() || 'unknown'}`;
+  },
+  skip: () => env.NODE_ENV === 'test',
 });
 
 router.post('/login', loginSpeedLimiter, validate(loginSchema), login);

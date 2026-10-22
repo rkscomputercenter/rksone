@@ -2,10 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../config/prisma';
 import { withAuditLog } from '../../utils/auditLog';
 import { isAdminOrAbove, isSuperAdmin } from '../../middleware/auth';
-import { isToday, getISTDayBounds, toISTDateString } from '../../utils/time';
+import { isToday, getISTDayBounds } from '../../utils/time';
+import { canAccessShop, getShopFilter } from '../../utils/shop';
 import {
-  sendSuccess, sendCreated, sendNotFound, sendError,
-  sendForbidden, sendConflict
+  sendSuccess, sendCreated, sendNotFound,
+  sendForbidden, sendConflict, HttpError
 } from '../../utils/response';
 
 const TX_SELECT = {
@@ -15,12 +16,20 @@ const TX_SELECT = {
   service: { select: { id: true, name: true, category: true } },
 };
 
+/** The "Others" quick entry is the only service any user may create on the fly. */
+const QUICK_ENTRY_SERVICE = 'Others';
+
+const CONFLICT_MESSAGE = 'This record was modified by another user. Please refresh and try again.';
+
 export async function getTransactions(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { date, userId: queryUserId, paymentMethod, shop, page = '1', limit = '50' } = req.query;
-    const pageNum = Math.max(1, parseInt(page as string));
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string)));
+    const pageNum = Math.max(1, parseInt(page as string) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string) || 50));
     const skip = (pageNum - 1) * limitNum;
+
+    const shopFilter = getShopFilter(req.user!, shop);
+    if (!shopFilter) { sendForbidden(res, 'You do not have access to this shop'); return; }
 
     // USERs can only see their own; ADMIN+ can see all or filter by userId
     const isAdmin = isAdminOrAbove(req.user!, 'allRecords');
@@ -39,7 +48,7 @@ export async function getTransactions(req: Request, res: Response, next: NextFun
       ...(filterUserId && { userId: filterUserId }),
       ...dateFilter,
       ...(paymentMethod && { paymentMethod }),
-      shop: shop ? shop : { in: req.user!.shopAccess },
+      shop: shopFilter,
     };
 
     const [transactions, total, sumAgg] = await Promise.all([
@@ -65,16 +74,23 @@ export async function createTransaction(req: Request, res: Response, next: NextF
       serviceId?: string; serviceName?: string; quantity: number; notes?: string; unitPrice?: number; paymentMethod: 'CASH' | 'ONLINE' | 'OTHER' | 'SHOP_XEROX'; shop?: 'SHOP_COMPUTER' | 'SHOP_XEROX';
     };
 
+    if (!canAccessShop(req.user!, shop)) {
+      sendForbidden(res, 'You do not have access to this shop context');
+      return;
+    }
+
     let service;
     if (serviceId) {
       service = await prisma.service.findUnique({ where: { id: serviceId } });
     } else if (serviceName) {
-      service = await prisma.service.findFirst({ where: { name: serviceName } });
-      if (!service) {
+      const name = serviceName.trim();
+      const mayCreate = name === QUICK_ENTRY_SERVICE || isAdminOrAbove(req.user!, 'services');
+      service = await prisma.service.findFirst({ where: { name } });
+      if (!service && mayCreate) {
         service = await prisma.service.create({
-          data: { name: serviceName, category: 'OTHER', price: customUnitPrice || 0, isActive: true }
+          data: { name, category: 'OTHER', price: customUnitPrice || 0, isActive: true, shop }
         });
-      } else if (!service.isActive) {
+      } else if (service && !service.isActive && mayCreate) {
         // Auto-activate if it exists but is inactive, so Quick Entries don't fail
         service = await prisma.service.update({
           where: { id: service.id },
@@ -90,11 +106,6 @@ export async function createTransaction(req: Request, res: Response, next: NextF
 
     const unitPrice = customUnitPrice !== undefined ? Number(customUnitPrice) : Number(service.price);
     const totalPrice = unitPrice * quantity;
-
-    if (!req.user!.shopAccess.includes(shop as string)) {
-      sendForbidden(res, 'You do not have access to this shop context');
-      return;
-    }
 
     const transaction = await withAuditLog(
       prisma, req.user!.userId, 'CREATE', 'transactions',
@@ -130,11 +141,11 @@ export async function updateTransaction(req: Request, res: Response, next: NextF
       include: { service: true },
     });
 
-    if (!existing) { sendNotFound(res, 'Transaction'); return; }
+    if (!existing || !canAccessShop(req.user!, existing.shop)) { sendNotFound(res, 'Transaction'); return; }
 
-    // Fix #2: Optimistic locking — check updatedAt matches
+    // Fix #2: Optimistic locking — check updatedAt matches (fast path; the update below re-checks atomically)
     if (new Date(existing.updatedAt).toISOString() !== new Date(updatedAt).toISOString()) {
-      sendConflict(res, 'This record was modified by another user. Please refresh and try again.');
+      sendConflict(res, CONFLICT_MESSAGE);
       return;
     }
 
@@ -157,11 +168,14 @@ export async function updateTransaction(req: Request, res: Response, next: NextF
       (t) => t.id,
       { quantity: existing.quantity, notes: existing.notes, totalPrice: existing.totalPrice },
       (t) => ({ quantity: t.quantity, notes: t.notes, totalPrice: t.totalPrice }),
-      (tx) => tx.transaction.update({
-        where: { id: req.params.id },
-        data: { quantity: newQuantity, totalPrice: newTotal, ...(notes !== undefined && { notes }) },
-        select: TX_SELECT,
-      })
+      async (tx) => {
+        const { count } = await tx.transaction.updateMany({
+          where: { id: existing.id, updatedAt: existing.updatedAt },
+          data: { quantity: newQuantity, totalPrice: newTotal, ...(notes !== undefined && { notes }) },
+        });
+        if (count === 0) throw new HttpError(409, CONFLICT_MESSAGE);
+        return tx.transaction.findUniqueOrThrow({ where: { id: existing.id }, select: TX_SELECT });
+      }
     );
 
     sendSuccess(res, updated, 200, undefined, 'Transaction updated');
@@ -171,7 +185,7 @@ export async function updateTransaction(req: Request, res: Response, next: NextF
 export async function deleteTransaction(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const existing = await prisma.transaction.findUnique({ where: { id: req.params.id } });
-    if (!existing) { sendNotFound(res, 'Transaction'); return; }
+    if (!existing || !canAccessShop(req.user!, existing.shop)) { sendNotFound(res, 'Transaction'); return; }
 
     if (!isToday(existing.createdAt) && !isSuperAdmin(req.user!.role)) {
       sendForbidden(res, 'Only today\'s records can be deleted (or use Super Admin override)');
