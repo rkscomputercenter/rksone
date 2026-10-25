@@ -46,6 +46,11 @@ services:
       # Render's proxy sits in front of the app (2 if the DNS record is proxied by Cloudflare)
       - key: TRUST_PROXY_HOPS
         value: 1
+      # Free tier sleeps after 15 idle minutes. "always" makes the server ping itself every 10 minutes,
+      # day and night, so it never sleeps (about 744 of the free 750 hours/month: keep this the only free
+      # service in the Render account). Not needed on a paid instance; remove it there.
+      - key: KEEP_AWAKE
+        value: always
       # Browser origins allowed to call the API (the Vercel web app)
       - key: ALLOWED_ORIGINS
         value: https://rksone.qenbel.site,https://app.rksone.qenbel.site

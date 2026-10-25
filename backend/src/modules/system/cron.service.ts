@@ -2,6 +2,12 @@ import cron from 'node-cron';
 import { prisma } from '../../config/prisma';
 import * as xlsx from 'xlsx';
 import { socketBroadcast } from '../../config/socket';
+import { env } from '../../config/env';
+
+/** Cron schedule (IST) of the self-ping that keeps a sleeping-prone host awake. */
+export function keepAwakeSchedule(mode: 'business-hours' | 'always'): string {
+  return mode === 'always' ? '*/10 * * * *' : '*/10 6-23 * * 1-6';
+}
 
 /**
  * Snapshot function to preserve 1 year of daily analytics before raw transactions are deleted.
@@ -206,14 +212,15 @@ export function initCronJobs() {
   seedSystemUser();
 
   // ── Render Anti-Sleep Ping ──
-  // Runs every 10 minutes ONLY between 6 AM and 11:59 PM (IST), Monday through Saturday
-  cron.schedule('*/10 6-23 * * 1-6', async () => {
+  // Every 10 minutes; Mon-Sat 6 AM-11:59 PM IST by default, around the clock with KEEP_AWAKE=always.
+  // It keeps an awake server awake; it cannot wake one that is already asleep.
+  cron.schedule(keepAwakeSchedule(env.KEEP_AWAKE), async () => {
     try {
       const pingUrl = process.env.RENDER_EXTERNAL_URL 
         ? `${process.env.RENDER_EXTERNAL_URL}/api/health`
         : `http://localhost:${process.env.PORT || 5001}/api/health`;
       
-      const res = await fetch(pingUrl);
+      const res = await fetch(pingUrl, { signal: AbortSignal.timeout(20_000) });
       if (res.ok) {
         console.log(`[Anti-Sleep] Pinged ${pingUrl} successfully.`);
       } else {

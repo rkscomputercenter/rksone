@@ -11,6 +11,10 @@ const envSchema = z.object({
   ALLOWED_ORIGINS: z.string().optional().default(''),
   // Number of reverse proxies in front of the app (Render = 1; Render behind Cloudflare = 2)
   TRUST_PROXY_HOPS: z.string().transform(Number).default('1'),
+  // Render's free tier sleeps after 15 idle minutes. 'business-hours' pings itself Mon-Sat 06:00-23:59 IST;
+  // 'always' pings every 10 minutes around the clock (about 744 of the free tier's 750 hours/month).
+  // Not needed on a paid always-on instance.
+  KEEP_AWAKE: z.enum(['business-hours', 'always']).default('business-hours'),
   // Where verified users download the Android APK: an absolute URL (e.g. a GitHub Release asset),
   // or a path on the web app's domain. APKs are not in git, so neither Vercel nor Render can serve one.
   APK_URL: z.string().optional().default('/download'),
