@@ -200,6 +200,7 @@ export default function AppShell({ children, title: fixedTitle }: AppShellProps)
       <Sidebar 
         isOpen={isMobileMenuOpen} 
         onClose={() => setIsMobileMenuOpen(false)} 
+        onToggle={toggleMenu}
       />
       <div className="main-content">
         <Topbar 

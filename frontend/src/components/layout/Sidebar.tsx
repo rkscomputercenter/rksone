@@ -1,15 +1,14 @@
-import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, PlusCircle, Printer, ScrollText, ListOrdered, Wallet,
   BarChart3, FolderOpen, ClipboardList, Landmark, SlidersHorizontal, TrendingUp,
   Wrench, Tags, History, FileClock, Receipt, RefreshCw, Archive,
   Bell, KeyRound, Users, ShieldCheck, Server, Database, Cloud, IndianRupee,
-  Code, LogOut, X, ChevronRight, type LucideIcon,
+  Code, LogOut, Menu, ChevronRight, ChevronDown, type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { RksOneLogo } from '../brand/Logo';
 
 interface NavItem {
   icon: LucideIcon;
@@ -28,6 +27,8 @@ interface NavSection {
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  /** The sandwich button at the top of the menu: hides it (desktop) or closes the drawer (phone) */
+  onToggle: () => void;
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -89,10 +90,11 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
-export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, onToggle }: SidebarProps) {
   const { user, role, isAdmin, isSuperAdmin, logout } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   const canSee = (item: NavItem) => {
     if (item.superOnly) return isSuperAdmin;
@@ -104,59 +106,86 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     return false;
   };
 
+  // Groups after "Counter" fold away. Which ones are open is remembered on this device,
+  // and the group holding the current page always opens.
+  const [openGroups, setOpenGroups] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('rks_menuGroups') || '["Money"]'); } catch { return ['Money']; }
+  });
+  useEffect(() => {
+    const current = SECTIONS.find(s => s.items.some(i => i.path === pathname))?.title;
+    if (current && current !== SECTIONS[0].title) setOpenGroups(g => (g.includes(current) ? g : [...g, current]));
+  }, [pathname]);
+  useEffect(() => {
+    try { localStorage.setItem('rks_menuGroups', JSON.stringify(openGroups)); } catch { /* storage blocked */ }
+  }, [openGroups]);
+  // Keep the current page's entry in view (it may sit low in an opened group)
+  useEffect(() => {
+    const t = setTimeout(() => document.querySelector('.sidebar .nav-item.active')?.scrollIntoView({ block: 'nearest' }), 50);
+    return () => clearTimeout(t);
+  }, [pathname, openGroups]);
+  const toggleGroup = (title: string) =>
+    setOpenGroups(g => (g.includes(title) ? g.filter(x => x !== title) : [...g, title]));
+
   const label = (key: string) => (key.startsWith('nav.') ? t(key as any) : key);
   const handleLogout = () => { logout(); navigate('/login'); };
 
+  const link = ({ icon: Icon, labelKey, path }: NavItem) => (
+    <NavLink key={path} to={path} end onClick={onClose}
+      className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+      <span className="nav-icon"><Icon size={19} strokeWidth={1.8} /></span>
+      <span className="nav-label">{label(labelKey)}</span>
+    </NavLink>
+  );
+
+  const [counter, ...groups] = SECTIONS;
+
   return (
     <aside id="main-menu" className={`sidebar ${isOpen ? 'mobile-open' : ''}`} aria-label="Main menu">
-      <div className="sidebar-brand">
-        <div>
-          <RksOneLogo height={48} glow className="brand-logo" />
-          <div className="brand-sub">RKS Xerox &amp; Computer Center</div>
-        </div>
-        <button className="sidebar-close-btn icon-btn" onClick={onClose} aria-label="Close menu" style={{ marginLeft: 'auto' }}>
-          <X size={18} />
+      <div className="sidebar-head">
+        <button className="menu-toggle menu-toggle-night" onClick={onToggle} aria-expanded="true" aria-controls="main-menu"
+          aria-label="Hide menu" title="Hide menu">
+          <Menu size={21} strokeWidth={2.2} />
         </button>
+        <span className="sidebar-title">Menu</span>
       </div>
 
       <nav className="sidebar-nav">
-        {SECTIONS.map(section => {
+        <div className="nav-primary">{counter.items.filter(canSee).map(link)}</div>
+
+        {groups.map(section => {
           const items = section.items.filter(canSee);
           if (items.length === 0) return null;
+          const open = openGroups.includes(section.title);
+          const id = `nav-group-${section.title.replace(/\s+/g, '-').toLowerCase()}`;
           return (
-            <div className="nav-section" key={section.title}>
-              <div className="nav-section-title">{section.title}</div>
-              {items.map(({ icon: Icon, labelKey, path }) => (
-                <NavLink key={path} to={path} end onClick={onClose}
-                  className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-                  <span className="nav-icon"><Icon size={18} strokeWidth={1.9} /></span>
-                  {label(labelKey)}
-                </NavLink>
-              ))}
+            <div className={`nav-group${open ? ' is-open' : ''}`} key={section.title}>
+              <button type="button" className="nav-group-head" aria-expanded={open} aria-controls={id}
+                onClick={() => toggleGroup(section.title)}>
+                <span>{section.title}</span>
+                <ChevronDown size={16} className="nav-group-chevron" aria-hidden="true" />
+              </button>
+              {open && <div id={id} className="nav-group-items">{items.map(link)}</div>}
             </div>
           );
         })}
-
-        <div className="nav-section" style={{ marginTop: 'auto', paddingTop: 14 }}>
-          <NavLink to="/developer" onClick={onClose} className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <span className="nav-icon"><Code size={18} strokeWidth={1.9} /></span>
-            About this app
-          </NavLink>
-          <button className="nav-item danger" onClick={handleLogout}>
-            <span className="nav-icon"><LogOut size={18} strokeWidth={1.9} /></span>
-            {t('nav.logout')}
-          </button>
-        </div>
       </nav>
 
-      <button className="sidebar-user" onClick={() => { onClose(); navigate('/profile'); }}>
-        <div className="avatar" aria-hidden="true">{user?.name?.[0]?.toUpperCase()}</div>
-        <div className="user-info">
-          <div className="user-name">{user?.name}</div>
-          <div className="user-role">{ROLE_LABEL[role ?? ''] ?? role}</div>
-        </div>
-        <ChevronRight size={16} color="var(--graphite-3)" />
-      </button>
+      <div className="sidebar-foot">
+        <button className="sidebar-person" onClick={() => { onClose(); navigate('/profile'); }} title="Your profile">
+          <span className="avatar" aria-hidden="true">{user?.name?.[0]?.toUpperCase()}</span>
+          <span className="person-text">
+            <span className="person-name">{user?.name}</span>
+            <span className="person-role">{ROLE_LABEL[role ?? ''] ?? role}</span>
+          </span>
+          <ChevronRight size={16} className="person-go" aria-hidden="true" />
+        </button>
+        <NavLink to="/developer" onClick={onClose} className={({ isActive }) => `foot-link${isActive ? ' active' : ''}`}>
+          <Code size={16} /> About
+        </NavLink>
+        <button className="foot-link danger" onClick={handleLogout}>
+          <LogOut size={16} /> {t('nav.logout')}
+        </button>
+      </div>
     </aside>
   );
 }
