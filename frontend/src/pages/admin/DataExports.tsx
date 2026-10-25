@@ -25,14 +25,21 @@ export default function DataExports() {
     }
   };
 
-  const downloadFile = (id: string, fileName: string) => {
-    const url = exportsApi.downloadUrl(id);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const downloadFile = async (id: string, fileName: string) => {
+    try {
+      const res = await exportsApi.download(id);
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert('Could not download this export. It may have expired; refresh the list and try again.');
+    }
   };
 
   return (

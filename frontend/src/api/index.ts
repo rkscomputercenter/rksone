@@ -128,6 +128,7 @@ export const systemApi = {
 // ── Exports ───────────────────────────────────────────────────────
 export const exportsApi = {
   list: () => api.get<ApiResponse<any[]>>('/system/exports'),
-  downloadUrl: (id: string) => `${api.defaults.baseURL}/system/exports/${id}/download`,
+  // Through the API client so the login token is sent (a plain link can't carry it)
+  download: (id: string) => api.get<Blob>(`/system/exports/${id}/download`, { responseType: 'blob', timeout: 120000 }),
 };
 

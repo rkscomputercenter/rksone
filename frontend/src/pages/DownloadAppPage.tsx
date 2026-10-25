@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Download, CheckCircle, Smartphone, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import api from '../api/client';
+import { API_BASE_URL, APP_NAME } from '../config';
 
 export default function DownloadAppPage() {
   const [username, setUsername] = useState('');
@@ -27,8 +27,7 @@ export default function DownloadAppPage() {
       // To bypass that, we can use fetch directly, or just let it redirect (which we don't want).
       // Let's use fetch directly so we don't trigger the global axios 401 logout redirect.
       
-      const baseURL = window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api';
-      const res = await fetch(`${baseURL}/auth/verify-download`, {
+      const res = await fetch(`${API_BASE_URL}/auth/verify-download`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: username.trim(), password })
@@ -46,7 +45,7 @@ export default function DownloadAppPage() {
       // Trigger download
       const a = document.createElement('a');
       a.href = data.data.apkUrl;
-      a.download = 'Shop_RKS_v1.0.41.apk';
+      a.download = 'RKS_ONE.apk';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -72,7 +71,7 @@ export default function DownloadAppPage() {
           </div>
 
           <h1 style={{ fontSize: 'clamp(2.5rem, 5vw, 3.5rem)', fontWeight: 900, lineHeight: 1.1, color: 'var(--text-primary)' }}>
-            Shop RKS <br/>
+            {APP_NAME} <br/>
             <span style={{ color: 'var(--color-primary)' }}>on the Go</span>
           </h1>
           

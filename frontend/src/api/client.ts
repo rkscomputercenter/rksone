@@ -1,10 +1,8 @@
 import axios from 'axios';
-import { Capacitor } from '@capacitor/core';
-import { API_BASE_URL_NATIVE } from '../config';
+import { API_BASE_URL } from '../config';
 
-const baseURL = Capacitor.isNativePlatform() 
-  ? API_BASE_URL_NATIVE 
-  : '/api';
+// The API is on its own domain (api.rksone.qenbel.site); in `vite dev` this is '/api' (proxied)
+const baseURL = API_BASE_URL;
 
 const api = axios.create({
   baseURL,

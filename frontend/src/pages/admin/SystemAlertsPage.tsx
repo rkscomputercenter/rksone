@@ -4,6 +4,7 @@ import Layout from '../../components/layout/Layout';
 import { Bell, AlertTriangle, Info, CheckCircle, Trash2, XCircle, RefreshCw, ShieldAlert, Cpu } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { io, Socket } from 'socket.io-client';
+import { SOCKET_ORIGIN } from '../../config';
 
 export default function SystemAlertsPage() {
   const { token } = useAuth();
@@ -29,7 +30,7 @@ export default function SystemAlertsPage() {
     fetchAlerts();
 
     if (!token) return;
-    const socket: Socket = io(window.location.origin, {
+    const socket: Socket = io(SOCKET_ORIGIN, {
       path: '/api/socket.io',
       auth: { token },
       transports: ['websocket']

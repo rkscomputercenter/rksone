@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.shoprks.app',
-  appName: 'Shop RKS',
+  appName: 'RKS ONE',
   webDir: 'dist',
   server: { cleartext: false },
   plugins: {

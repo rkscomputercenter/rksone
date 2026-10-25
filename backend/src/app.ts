@@ -7,7 +7,6 @@
 process.env.TZ = 'Asia/Kolkata';
 
 import express from 'express';
-import path from 'path';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
@@ -16,6 +15,7 @@ import { stream, logger } from './utils/logger';
 import rateLimit from 'express-rate-limit';
 
 import { env } from './config/env';
+import { originCallback } from './config/origins';
 import { globalErrorHandler } from './utils/response';
 
 // Route imports
@@ -44,49 +44,9 @@ app.set('trust proxy', env.TRUST_PROXY_HOPS);
 // ── Security ──────────────────────────────────────────────────────
 app.use(helmet());
 
-// Fix #6: CORS restricted to private LAN subnets only
-const PRIVATE_SUBNET_REGEX = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/;
-
-const allowedOrigins = env.ALLOWED_ORIGINS
-  ? env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
-  : [];
-
+// The web app lives on another domain (Vercel); see config/origins.ts for who may call the API
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (same-machine, mobile apps, Postman in LAN)
-    if (!origin) {
-      callback(null, true);
-      return;
-    }
-
-    // Allow explicitly configured origins
-    if (allowedOrigins.length > 0 && allowedOrigins.includes(origin)) {
-      callback(null, true);
-      return;
-    }
-
-    // Allow any private subnet origin or development tunnels
-    try {
-      const url = new URL(origin);
-      const hostname = url.hostname;
-      if (
-        PRIVATE_SUBNET_REGEX.test(hostname) || 
-        hostname === 'localhost' || 
-        hostname === '127.0.0.1' ||
-        hostname.endsWith('.trycloudflare.com') ||
-        hostname.endsWith('.loca.lt') ||
-        hostname === 'qenbel.site' ||
-        hostname.endsWith('.qenbel.site')
-      ) {
-        callback(null, true);
-        return;
-      }
-    } catch {
-      // invalid URL
-    }
-
-    callback(new Error(`CORS: Origin ${origin} not allowed`));
-  },
+  origin: originCallback,
   credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -124,30 +84,10 @@ app.use('/api/system', systemRoutes);
 app.use('/api/expense-categories', expenseCategoryRoutes);
 app.use('/api/roles', rolesRoutes);
 
-// ── Serve Frontend Static Files (Production) ──────────────────────
-// In production, Express serves the React build from /app/public.
-// __dirname = /app/dist  →  ../public = /app/public
-// This MUST come after all /api routes so API calls are not intercepted.
-if (env.NODE_ENV === 'production') {
-  const frontendPath = path.join(__dirname, '../public');
-
-  // Serve static assets (JS, CSS, images, fonts)
-  app.use(express.static(frontendPath, {
-    etag: true,
-    setHeaders: (res, pathStr) => {
-      if (pathStr.includes('/assets/') || pathStr.includes('\\assets\\')) {
-        res.setHeader('Cache-Control', 'public, max-age=31536000');
-      } else {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      }
-    }
-  }));
-
-  // SPA fallback — any non-API GET route serves index.html
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(frontendPath, 'index.html'));
-  });
-}
+// The web app is deployed separately (Vercel); this server only answers /api/*
+app.get('/', (_req, res) => {
+  res.json({ success: true, data: { service: 'RKS ONE API', health: '/api/health' } });
+});
 
 // 404 handler — catches unmatched API routes
 app.use((req, res) => {

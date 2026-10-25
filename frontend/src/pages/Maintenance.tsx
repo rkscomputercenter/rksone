@@ -41,7 +41,7 @@ export default function MaintenancePage() {
       </div>
 
       <div style={{ marginTop: 'auto', padding: 40, opacity: 0.5, fontSize: '12px' }}>
-        Version 1.0.0 | © 2026 RKS COMPUTER CENTER. All rights reserved.
+        RKS ONE | © 2026 RKS Computer Center. All rights reserved.
       </div>
     </div>
   );

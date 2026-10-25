@@ -13,7 +13,7 @@ function createWindow() {
 
   mainWindow.webContents.userAgent = mainWindow.webContents.userAgent + ' RKS-Desktop-App';
 
-  mainWindow.loadURL('https://rks.qenbel.site');
+  mainWindow.loadURL('https://rksone.qenbel.site');
 }
 
 app.whenReady().then(() => {

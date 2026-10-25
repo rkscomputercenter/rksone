@@ -2,14 +2,27 @@
 
 Date of handoff: 2026-10-21. Written from a session opened in `D:\shop-rks` (production). Continue from `D:\shop-rks-qenbel`.
 
+## 0. Update 2026-10-25: RKS ONE, Vercel + Render split (branch `feat/rks-one-split`)
+Supersedes the `rks.qenbel.site` single-server plan below. Setup steps: `DEPLOYMENT.md`.
+- **Brand:** the software is **RKS ONE** (page title, login, sidebar/topbar, updater, download page, maintenance page, Capacitor `appName`, Android `app_name`, desktop `productName`). The shop's business name "RKS Xerox and Computer center" is kept on bills, Terms and the public `/open` page. `applicationId com.shoprks.app` and desktop `appId` are unchanged on purpose (install identity). Logo images are unchanged (part of the UI redesign).
+- **Web app → Vercel:** `frontend/vercel.json` (project root `frontend`). Main address `https://rksone.qenbel.site`; `app.rksone.qenbel.site` permanently redirects there, because logins are stored per address.
+- **API → Render:** the root `Dockerfile` is now API-only. Express no longer serves the frontend; `GET /` returns a small JSON. `render.yaml` service `rksone-api`, domain `api.rksone.qenbel.site`, `buildFilter` on backend paths.
+- **Frontend config** (`src/config.ts`): `API_ORIGIN` (default `https://api.rksone.qenbel.site`; '' in `vite dev`, so requests go through the proxy), `APP_ORIGIN` (default `https://rksone.qenbel.site`), `SOCKET_ORIGIN`, `APP_NAME`. Every API call, socket, update check and download goes through it; there are no relative `/api` URLs left.
+- **CORS** (`backend/src/config/origins.ts`): one allow-list for HTTP and Socket.IO, built from `ALLOWED_ORIGINS` plus localhost (vite, Capacitor `https://localhost`) and private LAN. Removed: `*.qenbel.site`, `*.trycloudflare.com`, `*.loca.lt`, and Socket.IO's `origin: '*'`. A refused origin gets no CORS headers instead of a 500. Tests: `tests/origins.test.ts`.
+- **APK link:** `APK_URL` env on the API (the API can't read the web app's `version.json` any more). `public/version.json` `apkUrl` is now `/download`. The APK still needs hosting (GitHub Release suggested).
+- **Fixed on the way:** Data Exports download sent no login token (always 401); it now downloads through the API client. Layout's server-message fetch used a relative URL.
+- **CI:** `.github/workflows/deploy.yml` (Render deploy hook, which would double-deploy and fails without its secret) replaced by `ci.yml`: backend typecheck + tests on Postgres 17, frontend typecheck + build.
+- **Verified locally:** 31 backend tests pass; both typechecks; production build contains `api.rksone.qenbel.site`; against a local backend: preflight, login, authenticated call and websocket from origin `https://rksone.qenbel.site` succeed, and a foreign origin gets no CORS header.
+- **Not done (needs the user / accounts):** create the Vercel project and the Render blueprint, DNS records, `APK_URL`, then the bridge APK (`versionCode` bump, built with the new origins).
+
 ## 1. Goal
-Run the same system at **https://rks.qenbel.site** (new Render service + new Supabase DB), while the **old system `shop-rks.onrender.com` keeps running** for a while. Reason: installed Android APKs fetch `version.json`, the APK and the API from the old URL. Later the old server will push a "bridge" update that moves installed apps to the new URL.
+Run the same system at **https://rksone.qenbel.site** (originally planned as `rks.qenbel.site`; see §0) (new Render service + new Supabase DB), while the **old system `shop-rks.onrender.com` keeps running** for a while. Reason: installed Android APKs fetch `version.json`, the APK and the API from the old URL. Later the old server will push a "bridge" update that moves installed apps to the new URL.
 
 ## 2. Decisions locked (don't re-litigate)
 - Option B: separate folder + **fresh git repo** (no history, no heavy files).
 - Old URL stays alive; this folder never modifies production.
 - New APK must keep `applicationId com.shoprks.app` and be signed with the **same keystore** as v1.0.x APKs (Android update requirement). The keystore stays outside git: the original file is at `D:\shop-rks\frontend\android\app\release.keystore` (tracked in the old repo). Create `frontend/android/keystore.properties` (see `.example`) pointing at it.
-- Native server origin comes from `VITE_SERVER_ORIGIN`, default `https://rks.qenbel.site` (`frontend/src/config.ts`).
+- Native and web origins come from `VITE_API_ORIGIN` / `VITE_APP_ORIGIN` (`frontend/src/config.ts`; see §0). This replaced `VITE_SERVER_ORIGIN`.
 
 ## 3. What was done in this folder
 Source = `git archive HEAD` of production (tracked files only), then:
@@ -92,11 +105,7 @@ Found in the 2026-10-22 analysis (A = FIXED on `fix/money-and-permissions`):
 
 ## 9. Database backup (2026-10-21)
 - Live DB = Supabase project `vfzrfkzkenqjzhvilgqp`. Direct host (`db.<ref>.supabase.co`) is IPv6-only and does not resolve from this PC; use the **Mumbai session pooler** `aws-1-ap-south-1.pooler.supabase.com:5432`, user `postgres.vfzrfkzkenqjzhvilgqp`. Port 6543 pooler can't be used for pg_dump.
-- Backup `rks_20261021_184714` stored in `D:
-ecovery`, `D:\shop-rksackups`, `D:\shop-rks-qenbelackups` (git-ignored). Details/restore steps: `D:
-ecovery\README.md`; script: `D:
-ecoveryackup-db.sh` (credentials in `D:
-ecovery\.supabase_conn` / `.supabase_pw`, outside git).
+- Backup `rks_20261021_184714` stored in `D:\recovery`, `D:\shop-rks\backups`, `D:\shop-rks-qenbel\backups` (git-ignored). Details/restore steps: `D:\recovery\README.md`; script: `D:\recovery\backup-db.sh` (credentials in `D:\recovery\.supabase_conn` / `.supabase_pw`, outside git).
 - Verified: checksums OK in all 3 copies; row counts per table in the dump equal live (18 tables). A full test-restore into a scratch Postgres was NOT completed (Docker Desktop stopped responding) — do that dry run before cutover.
 - `_prisma_migrations` has 14 rows in live, so the live DB was migrated with `prisma migrate` at some point (relevant to the `migrate deploy` question in section 6).
 - Re-run the backup right before cutover. The DB password was shared in chat, so rotate it after the migration.

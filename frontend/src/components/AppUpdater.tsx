@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
-import { SERVER_ORIGIN, API_BASE_URL_NATIVE } from '../config';
+import { APP_ORIGIN, API_BASE_URL, APP_NAME } from '../config';
 
 const CURRENT_VERSION = '1.0.41';
 
@@ -22,14 +22,14 @@ export default function AppUpdater() {
 
     const checkForUpdates = async () => {
       try {
-        const response = await fetch(`${SERVER_ORIGIN}/version.json?t=${Date.now()}`, { cache: 'no-store' });
+        const response = await fetch(`${APP_ORIGIN}/version.json?t=${Date.now()}`, { cache: 'no-store' });
         if (!response.ok) return;
 
         const data = await response.json();
         
         // Simple string comparison for versions (e.g. '1.0.1' > '1.0.0')
         if (data.version && compareVersions(data.version, CURRENT_VERSION) > 0) {
-          setApkUrl(data.apkUrl || `${SERVER_ORIGIN}/download`);
+          setApkUrl(data.apkUrl || `${APP_ORIGIN}/download`);
           setReleaseNotes(data.releaseNotes || 'A new version is available.');
           setUpdateAvailable(true);
         }
@@ -67,8 +67,7 @@ export default function AppUpdater() {
 
     setLoading(true);
     try {
-      const baseURL = API_BASE_URL_NATIVE;
-      const res = await fetch(`${baseURL}/auth/verify-download`, {
+      const res = await fetch(`${API_BASE_URL}/auth/verify-download`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: username.trim(), password })
@@ -84,7 +83,7 @@ export default function AppUpdater() {
       
       // Open the download URL in the external device browser so the system can download it properly
       const secureApkUrl = data.data?.apkUrl || apkUrl;
-      const urlToOpen = secureApkUrl.startsWith('http') ? secureApkUrl : `${SERVER_ORIGIN}${secureApkUrl}`;
+      const urlToOpen = secureApkUrl.startsWith('http') ? secureApkUrl : `${APP_ORIGIN}${secureApkUrl}`;
       window.open(urlToOpen, '_system');
       
     } catch (err: any) {
@@ -128,7 +127,7 @@ export default function AppUpdater() {
         </div>
         <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '12px' }}>Update Required</h2>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.6 }}>
-          A new version of Shop RKS is available. Please authenticate to download the update.
+          A new version of {APP_NAME} is available. Please authenticate to download the update.
         </p>
         
         {releaseNotes && (

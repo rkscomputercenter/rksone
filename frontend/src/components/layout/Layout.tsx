@@ -5,6 +5,8 @@ import Topbar from './Topbar';
 import BottomNav from './BottomNav';
 import { useAuth } from '../../context/AuthContext';
 import { io, Socket } from 'socket.io-client';
+import { systemApi } from '../../api';
+import { SOCKET_ORIGIN, APP_NAME } from '../../config';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { FcAdvertising } from 'react-icons/fc';
@@ -24,9 +26,8 @@ export default function Layout({ children, title }: LayoutProps) {
   // Fetch Server Message on Load
   useEffect(() => {
     if (!token) return;
-    fetch('/api/system/config')
-      .then(r => r.json())
-      .then(data => {
+    systemApi.getConfig()
+      .then(({ data }) => {
         if (data?.data?.serverMessage) {
           const msg = data.data.serverMessage;
           const dismissed = localStorage.getItem('dismissed_broadcast');
@@ -56,7 +57,7 @@ export default function Layout({ children, title }: LayoutProps) {
     if (!token) return;
 
     // Connect to Socket.IO
-    const socket: Socket = io(window.location.origin, {
+    const socket: Socket = io(SOCKET_ORIGIN, {
       path: '/api/socket.io',
       auth: { token },
       transports: ['websocket']
@@ -101,7 +102,7 @@ export default function Layout({ children, title }: LayoutProps) {
       
       if (data.type === 'MESSAGE') {
         setBroadcast(data.message);
-        fireBrowserNotification('RKS Broadcast', data.message);
+        fireBrowserNotification(`${APP_NAME} Broadcast`, data.message);
       } else if (data.type === 'NEW_ALERT') {
         fireBrowserNotification('System Alert', data.payload?.message || 'New system alert received');
       } else if (data.type === 'PERIODIC_UPDATE') {
@@ -179,7 +180,7 @@ export default function Layout({ children, title }: LayoutProps) {
       />
       <div className="main-content">
         <Topbar 
-          title={title || 'RKS Management'} 
+          title={title || APP_NAME} 
           onMenuClick={() => setIsMobileMenuOpen(true)} 
         />
         <main className="page-content" style={{ flex: 1 }}>
@@ -265,7 +266,7 @@ export default function Layout({ children, title }: LayoutProps) {
                   </button>
                   
                   <div style={{ marginTop: 20, fontSize: 11, color: 'var(--text-muted)', opacity: 0.6 }}>
-                    RKS MANAGEMENT SYSTEM • SECURE REAL-TIME
+                    RKS ONE • SECURE REAL-TIME
                   </div>
                 </div>
               </div>

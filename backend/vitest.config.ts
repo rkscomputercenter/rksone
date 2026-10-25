@@ -13,6 +13,7 @@ export default defineConfig({
       TZ: 'Asia/Kolkata',
       DATABASE_URL: TEST_DATABASE_URL,
       JWT_SECRET: 'test-secret-not-used-anywhere-else',
+      ALLOWED_ORIGINS: 'https://rksone.qenbel.site, https://app.rksone.qenbel.site/',
     },
   },
 });

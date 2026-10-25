@@ -6,7 +6,7 @@
 set -e
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo " RKS – Computer Centre and Xerox"
+echo " RKS ONE API"
 echo " Backend starting at $(date '+%Y-%m-%d %H:%M:%S %Z')"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 

@@ -77,7 +77,7 @@ export default function LoginPage() {
           
           <img src="/app-logo.png" alt="App Logo" style={{ height: '96px', width: '96px', objectFit: 'contain', borderRadius: '50%', marginBottom: '24px', background: 'rgba(255,255,255,0.9)', padding: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.3)' }} />
           
-          <h2 style={{ fontSize: '28px', fontWeight: 800, color: '#f8fafc', marginBottom: '8px', letterSpacing: '-0.5px' }}>RKS Desktop</h2>
+          <h2 style={{ fontSize: '28px', fontWeight: 800, color: '#f8fafc', marginBottom: '8px', letterSpacing: '-0.5px' }}>RKS ONE Desktop</h2>
           <p style={{ color: '#94a3b8', fontSize: '15px', marginBottom: '40px', textAlign: 'center' }}>Secure gateway for authorized personnel.</p>
 
           <form onSubmit={handleSubmit} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -169,7 +169,7 @@ export default function LoginPage() {
           <img src="/app-logo.png" alt="App Logo" style={{ height: '110px', width: '110px', objectFit: 'contain', borderRadius: '50%', marginBottom: '24px', background: '#fff', padding: '5px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }} />
           
           <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>Welcome Back</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '32px', textAlign: 'center' }}>Sign in to continue to Shop RKS</p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '32px', textAlign: 'center' }}>Sign in to continue to RKS ONE</p>
 
           <form onSubmit={handleSubmit} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {error && !isSuspendedError && (
@@ -256,7 +256,7 @@ export default function LoginPage() {
           </Link>
           <img src="/logo.png" alt="RKS Logo" style={{ height: 100, objectFit: 'contain', background: '#fff', padding: 10, borderRadius: 12, marginBottom: 24, boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }} />
           <h1 style={{ fontSize: '3rem', fontWeight: 900, lineHeight: 1.1, marginBottom: 16 }}>
-            RKS Internal<br/>Management System
+            RKS ONE
           </h1>
           <p style={{ fontSize: '1.2rem', opacity: 0.9, maxWidth: 400, lineHeight: 1.5, marginBottom: 32 }}>
             Secure portal for staff and administrators. Manage billing, transactions, and analytics seamlessly.

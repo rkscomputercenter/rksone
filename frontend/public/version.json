@@ -1,5 +1,5 @@
 {
-    "apkUrl": "/Shop_RKS_v1.0.41.apk",
+    "apkUrl": "/download",
     "releaseNotes": "Fix update loop caused by CDN caching of the APK file.",
     "version": "1.0.41"
 }

@@ -3,18 +3,18 @@
 Read this first, then `HANDOFF.md` (state + next steps) and `docs/BUSINESS_RULES.md` (rules the code must keep).
 
 ## What this folder is
-This is the **migration copy** of the live system. It will be deployed to **https://rks.qenbel.site** on a **new Render service + new Supabase project**.
+This is the **migration copy** of the live system, rebranded **RKS ONE**. It deploys from GitHub `rkscomputercenter/rksone` (public) as three parts: web app on **Vercel** (https://rksone.qenbel.site; `app.rksone.qenbel.site` redirects there), API on **Render** (https://api.rksone.qenbel.site), database on a **new Supabase project**. See `DEPLOYMENT.md`.
 
 - **Production is a different folder: `D:\shop-rks`** (live at https://shop-rks.onrender.com, GitHub `hemapriyan-rk/shop-rks`, auto-deploys on push to `main`).
 - **Never edit, commit, or push anything in `D:\shop-rks` from a session in this folder.** If a change must go to production, tell the user and let them decide.
-- This folder has its own git repo (no remote yet). History is intentionally not carried over (old repo was 1 GB: APKs, an .exe, a committed keystore).
-- Do not add a remote or push without the user's explicit go-ahead.
+- This folder has its own git repo; remote `origin` = github.com/rkscomputercenter/rksone (**public**). History is intentionally not carried over (old repo was 1 GB: APKs, an .exe, a committed keystore).
+- Do not push without the user's explicit go-ahead (the repo is public: whatever is pushed is published).
 
 ## Stack
 - Backend: Node 20+, Express 4, TypeScript, Prisma 5, PostgreSQL (Supabase), Socket.IO, node-cron, zod, winston. `backend/`
 - Frontend: React 18, Vite, TypeScript, Recharts, Capacitor 8 (Android). `frontend/`
-- Desktop: Electron wrapper (`desktop-wrapper/`, loads the server URL). Backup sidecar: `backup/`.
-- Deploy: root `Dockerfile` (multi-stage; Express serves the built frontend from `/app/public`), `render.yaml`, `.github/workflows/deploy.yml` (Render deploy hook).
+- Desktop: Electron wrapper (`desktop-wrapper/`, loads https://rksone.qenbel.site). Backup sidecar: `backup/`.
+- Deploy: root `Dockerfile` (API only) + `render.yaml` → Render; `frontend/vercel.json` → Vercel (project root `frontend`). The frontend reaches the API through `frontend/src/config.ts` (`API_ORIGIN`, `VITE_API_ORIGIN`); allowed browser origins are in `backend/src/config/origins.ts` + `ALLOWED_ORIGINS`. CI: `.github/workflows/ci.yml` (tests + builds, no deploy).
 
 ## Commands
 ```
@@ -30,14 +30,14 @@ npm run dev            # vite on 5173, proxies /api -> localhost:5001  (NOTE: ba
 npx tsc --noEmit       # typecheck  (passes as of handoff)
 npm run build
 ```
-There are no tests and no lint config yet.
+Backend tests: `npm test` in `backend/` (vitest + supertest against a real Postgres; database name must end in `_test`, default `rks_test`, override `TEST_DATABASE_URL`). No lint config yet.
 
 ## Architecture map
 - `backend/src/app.ts` entry. Modules in `backend/src/modules/<feature>/{*.controller.ts,*.routes.ts}`: auth, users, roles, services, transactions, expenses, banks, analytics, logs, system (+ `cron.service.ts`), health.
 - `backend/src/middleware/auth.ts`: `authenticate`, `requireRole`, `isAdminOrAbove`.
 - `backend/src/utils/auditLog.ts`: `withAuditLog` — all mutations should go through it.
 - `backend/prisma/schema.prisma` + `migrations/`.
-- Frontend: `src/api/client.ts` (axios + refresh-token interceptor), `src/config.ts` (server origin for native app), `src/pages/**`, `src/context/*`.
+- Frontend: `src/api/client.ts` (axios + refresh-token interceptor), `src/config.ts` (APP_ORIGIN / API_ORIGIN / SOCKET_ORIGIN, APP_NAME), `src/pages/**`, `src/context/*`.
 
 ## Hard rules for this codebase
 1. All time logic is **IST (Asia/Kolkata)**. Never bucket days with `toISOString().split('T')[0]` (that is UTC).
@@ -48,4 +48,4 @@ There are no tests and no lint config yet.
 6. Android/APK constraints (do not break): keep `applicationId com.shoprks.app` and sign with the **original** release keystore, or installed apps cannot update in place.
 
 ## Status
-See `HANDOFF.md`. Short version: baseline copy done and typechecks; URLs decoupled from the old server; behaviour bug fixes (list in HANDOFF.md §5) are **not** done yet.
+See `HANDOFF.md`. Short version: HANDOFF §5 items 1–6 and the money/permission findings are fixed with tests; cron/cleanup (7–10) and audit/ops items are open; UI redesign not started; Vercel + Render split and RKS ONE rename done in code (services not created yet).

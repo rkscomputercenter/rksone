@@ -11,6 +11,9 @@ const envSchema = z.object({
   ALLOWED_ORIGINS: z.string().optional().default(''),
   // Number of reverse proxies in front of the app (Render = 1; Render behind Cloudflare = 2)
   TRUST_PROXY_HOPS: z.string().transform(Number).default('1'),
+  // Where verified users download the Android APK: an absolute URL (e.g. a GitHub Release asset),
+  // or a path on the web app's domain. APKs are not in git, so neither Vercel nor Render can serve one.
+  APK_URL: z.string().optional().default('/download'),
 });
 
 export type Env = z.infer<typeof envSchema>;

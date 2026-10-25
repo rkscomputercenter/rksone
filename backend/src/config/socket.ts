@@ -2,13 +2,14 @@ import { Server } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import jwt from 'jsonwebtoken';
 import { env } from './env';
+import { originCallback } from './origins';
 
 let io: Server;
 
 export const initSocket = (server: HttpServer) => {
   io = new Server(server, {
     cors: {
-      origin: '*', // Allow all for local Wi-Fi access
+      origin: originCallback, // same origins as the HTTP API
       methods: ['GET', 'POST'],
       credentials: true
     },

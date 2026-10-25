@@ -5,19 +5,10 @@ import { prisma } from '../../config/prisma';
 import { env } from '../../config/env';
 import { sendSuccess, sendError, sendUnauthorized } from '../../utils/response';
 import { socketBroadcast } from '../../config/socket';
-import fs from 'fs';
-import path from 'path';
 
-/** Reads the current APK path from the published version.json (frontend build output). */
+/** The APK link handed out after /auth/verify-download (the web app is on another server now). */
 function getCurrentApkUrl(): string {
-  try {
-    const file = path.join(__dirname, '../../../public/version.json');
-    const { apkUrl } = JSON.parse(fs.readFileSync(file, 'utf8'));
-    if (typeof apkUrl === 'string' && apkUrl) return apkUrl;
-  } catch {
-    // fall through to the generic download page
-  }
-  return '/download';
+  return env.APK_URL;
 }
 
 export async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
