@@ -108,10 +108,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const handleLogout = () => { logout(); navigate('/login'); };
 
   return (
-    <aside className={`sidebar ${isOpen ? 'mobile-open' : ''}`} aria-label="Main menu">
+    <aside id="main-menu" className={`sidebar ${isOpen ? 'mobile-open' : ''}`} aria-label="Main menu">
       <div className="sidebar-brand">
         <div>
-          <RksOneLogo height={48} className="brand-logo" />
+          <RksOneLogo height={48} glow className="brand-logo" />
           <div className="brand-sub">RKS Xerox &amp; Computer Center</div>
         </div>
         <button className="sidebar-close-btn icon-btn" onClick={onClose} aria-label="Close menu" style={{ marginLeft: 'auto' }}>

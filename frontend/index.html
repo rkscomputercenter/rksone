@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="color-scheme: light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
@@ -11,12 +11,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Anek+Tamil:wdth,wght@75..125,300..800&display=swap" rel="stylesheet" />
     <meta name="theme-color" content="#FFFFFF" />
     <script>
-      // Apply the saved theme before first paint, so dark mode doesn't flash white
-      try {
-        var t = localStorage.getItem('rks_theme');
-        var dark = t === 'dark' || t === 'glass' || t === 'black-gold' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-      } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+      // One theme only; forget a theme saved by older versions
+      try { localStorage.removeItem('rks_theme'); } catch (e) {}
     </script>
   </head>
   <body>

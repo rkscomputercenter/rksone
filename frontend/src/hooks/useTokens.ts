@@ -1,12 +1,10 @@
 import { useMemo } from 'react';
-import { useTheme } from '../context/ThemeContext';
 
 /**
- * Current theme colors as real values. Charts (Recharts) write colors into SVG
+ * Theme colors as real values. Charts (Recharts) write colors into SVG
  * attributes, where CSS var() is not reliably resolved, so they read them from here.
  */
 export function useTokens() {
-  const { theme } = useTheme();
   return useMemo(() => {
     const css = getComputedStyle(document.documentElement);
     const get = (name: string) => css.getPropertyValue(name).trim();
@@ -23,7 +21,5 @@ export function useTokens() {
       sheet: get('--sheet'),
       font: get('--font'),
     };
-    // theme is the dependency: the values change when data-theme flips
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [theme]);
+  }, []);
 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageCircle, Phone, MapPin, Mail, Clock, ArrowUpRight } from 'lucide-react';
-import { RksOneMark } from '../components/brand/Logo';
+import { RksOneLogo, RksOneMark } from '../components/brand/Logo';
 
 const PHONE = '8122778794';
 const EMAIL = 'rksxerox@gmail.com';
@@ -49,6 +49,7 @@ export default function LandingPage() {
 
   return (
     <div className="shop">
+      <div className="shop-night">
       <header className="shop-top">
         <div className="shop-wrap shop-top-inner">
           <a href="#top" className="shop-top-name">RKS Xerox &amp; Computer Center</a>
@@ -62,9 +63,9 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main id="top">
-        <section className="shop-hero shop-wrap">
+        <section id="top" className="shop-hero shop-wrap">
           <div className="shop-hero-text">
+            <div className="shop-logo"><RksOneLogo height={104} glow /></div>
             <p className="shop-where">Opposite Taluk Office, Harur</p>
             <h1 className="shop-name">RKS Xerox<br />&amp; Computer Center</h1>
             <p className="shop-what">
@@ -97,6 +98,9 @@ export default function LandingPage() {
             <a href={`mailto:${EMAIL}`} className="btn btn-ghost btn-full" style={{ marginTop: 8 }}><Mail size={16} /> {EMAIL}</a>
           </aside>
         </section>
+      </div>
+
+      <main>
 
         <section id="services" className="shop-wrap shop-services" aria-labelledby="services-title">
           <div className="shop-section-head">
@@ -143,6 +147,25 @@ export default function LandingPage() {
 
       <style>{`
         .shop { min-height: 100vh; background: var(--paper); color: var(--graphite); }
+        /* The night band: header and hero on the brand background, like sign-in and the menu */
+        .shop-night { background: radial-gradient(110% 90% at 75% 20%, var(--night-1) 0%, var(--night-2) 55%, var(--night-3) 100%); color: var(--night-text); }
+        .shop-night .shop-top { background: transparent; border-bottom-color: var(--night-line); }
+        .shop-night .shop-top-name { color: var(--night-text); }
+        .shop-night .shop-nav a { color: var(--night-muted); }
+        .shop-night .shop-nav a:hover { background: var(--night-hover); color: var(--night-text); }
+        .shop-night .shop-staff { color: var(--night-text); border-color: rgba(236, 234, 248, 0.25); }
+        .shop-night .shop-staff:hover { border-color: rgba(236, 234, 248, 0.5); }
+        .shop-logo { color: #fff; margin: 0 0 18px -14px; line-height: 0; }
+        .shop-logo svg { max-width: 100%; height: auto; }
+        .shop-night .shop-where { color: #C9B8FF; }
+        .shop-night .shop-name { color: #fff; }
+        .shop-night .shop-what { color: var(--night-muted); }
+        .shop-night .shop-what-ta { color: var(--night-faint); }
+        .shop-night .btn-ghost { background: transparent; color: var(--night-text); border-color: rgba(236, 234, 248, 0.28); }
+        .shop-night .btn-ghost:hover { background: var(--night-hover); border-color: rgba(236, 234, 248, 0.5); }
+        .shop-night .shop-slip .btn-ghost { background: var(--sheet); color: var(--graphite); border-color: var(--rule); }
+        .shop-night .shop-slip { color: var(--graphite); box-shadow: 6px 6px 0 -1px #2A2466, 6px 6px 0 0 rgba(236, 234, 248, 0.12); }
+        .shop-night .shop-slip::before { background: radial-gradient(circle at 7px 10px, var(--night-2) 3.2px, transparent 3.6px) 0 0 / 14px 10px repeat-x, var(--sheet); }
         .shop-wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
         .shop a { text-decoration: none; }
 
@@ -171,7 +194,7 @@ export default function LandingPage() {
         .shop-status.is-open { background: var(--cash-wash); color: var(--cash); }
         .shop-status.is-closed { background: var(--stamp-wash); color: var(--stamp); }
 
-        .shop-services { padding-top: 56px; padding-bottom: 56px; border-top: 1px solid var(--rule); }
+        .shop-services { padding-top: 56px; padding-bottom: 56px; }
         .shop-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
         .shop-h2 { font-size: var(--fs-3xl); font-weight: 650; font-stretch: 82%; letter-spacing: -0.01em; }
         .shop-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 48px; border-top: 2px solid var(--graphite); }
@@ -193,7 +216,8 @@ export default function LandingPage() {
         .shop-foot-staff { display: inline-flex; align-items: center; gap: 4px; }
 
         @media (max-width: 860px) {
-          .shop-hero { grid-template-columns: 1fr; gap: 36px; padding-top: 36px; padding-bottom: 48px; }
+          .shop-hero { grid-template-columns: 1fr; gap: 36px; padding-top: 28px; padding-bottom: 40px; }
+          .shop-logo svg { width: 250px; }
           .shop-list { grid-template-columns: 1fr; }
           .shop-nav { display: none; }
           .shop-top-name { font-size: var(--fs-md); }

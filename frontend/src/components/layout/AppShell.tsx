@@ -11,7 +11,6 @@ import { SOCKET_ORIGIN, APP_NAME } from '../../config';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Megaphone } from 'lucide-react';
-import { useTheme } from '../../context/ThemeContext';
 
 interface AppShellProps {
   /** Only for a page rendered outside the shell route; normally the routed page comes from <Outlet>. */
@@ -29,7 +28,6 @@ export default function AppShell({ children, title: fixedTitle }: AppShellProps)
   const [title, setTitle] = useState(fixedTitle || APP_NAME);
   const shell = useMemo(() => ({ setTitle }), []);
   const mainRef = useRef<HTMLElement>(null);
-  const { theme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   // useNavigate changes identity on every route change; effects that must not re-run read it from a ref
@@ -37,6 +35,18 @@ export default function AppShell({ children, title: fixedTitle }: AppShellProps)
   navigateRef.current = navigate;
   const [broadcast, setBroadcast] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // Desktop: the menu button hides the sidebar; the choice is remembered on this device
+  const [menuHidden, setMenuHidden] = useState(() => {
+    try { return localStorage.getItem('rks_menuHidden') === '1'; } catch { return false; }
+  });
+  const isPhone = () => window.matchMedia('(max-width: 768px)').matches;
+  const toggleMenu = () => {
+    if (isPhone()) { setIsMobileMenuOpen(open => !open); return; }
+    setMenuHidden(hidden => {
+      try { localStorage.setItem('rks_menuHidden', hidden ? '0' : '1'); } catch { /* storage blocked */ }
+      return !hidden;
+    });
+  };
 
   // Fetch Server Message on Load
   useEffect(() => {
@@ -142,14 +152,14 @@ export default function AppShell({ children, title: fixedTitle }: AppShellProps)
     };
   }, [token, logout]);
 
-  // Android status bar follows the theme (white topbar or navy)
+  // Android status bar: dark icons on the white topbar
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
-      StatusBar.setStyle({ style: theme === 'dark' ? Style.Dark : Style.Light }).catch(() => {});
-      StatusBar.setBackgroundColor({ color: theme === 'dark' ? '#16223F' : '#FFFFFF' }).catch(() => {});
+      StatusBar.setStyle({ style: Style.Light }).catch(() => {});
+      StatusBar.setBackgroundColor({ color: '#FFFFFF' }).catch(() => {});
     });
-  }, [theme]);
+  }, []);
 
   // Android back button and keyboard. Registered once; the handler reads the current state from refs.
   const backState = useRef({ isMobileMenuOpen, broadcast });
@@ -182,7 +192,7 @@ export default function AppShell({ children, title: fixedTitle }: AppShellProps)
   if (!isAuthenticated) return <>{children ?? <Outlet />}</>;
 
   return (
-    <div className="app-layout">
+    <div className={`app-layout${menuHidden ? ' menu-hidden' : ''}`}>
       <div 
         className={`mobile-backdrop ${isMobileMenuOpen ? 'visible' : ''}`} 
         onClick={() => setIsMobileMenuOpen(false)} 
@@ -194,7 +204,8 @@ export default function AppShell({ children, title: fixedTitle }: AppShellProps)
       <div className="main-content">
         <Topbar 
           title={title || APP_NAME} 
-          onMenuClick={() => setIsMobileMenuOpen(true)} 
+          onMenuClick={toggleMenu}
+          menuShown={isMobileMenuOpen || (!menuHidden && typeof window !== 'undefined' && !isPhone())}
         />
         <main ref={mainRef} className="page-content" style={{ flex: 1 }}>
           {broadcast && (

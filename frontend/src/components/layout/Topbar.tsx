@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { Menu, Sun, Moon } from 'lucide-react';
+import { Menu, PanelLeftClose } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
 
 import type { Shop } from '../../types';
 
-interface TopbarProps { title: string; onMenuClick: () => void; }
+interface TopbarProps {
+  title: string;
+  onMenuClick: () => void;
+  /** Whether the menu is showing, for the button label and icon */
+  menuShown: boolean;
+}
 
 const SHOP_LABEL: Record<Shop, string> = { SHOP_COMPUTER: 'Computer', SHOP_XEROX: 'Xerox' };
 
@@ -24,9 +28,8 @@ function renderUsage() {
   return { used: Math.floor(hoursUsed), remaining: Math.floor(750 - hoursUsed) };
 }
 
-export default function Topbar({ title, onMenuClick }: TopbarProps) {
+export default function Topbar({ title, onMenuClick, menuShown }: TopbarProps) {
   const { user, role, activeShop, setActiveShop } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const { language, toggleLanguage, t } = useLanguage();
   const [time, setTime] = useState('');
 
@@ -44,8 +47,9 @@ export default function Topbar({ title, onMenuClick }: TopbarProps) {
 
   return (
     <header className="topbar">
-      <button className="mobile-menu-btn icon-btn" onClick={onMenuClick} aria-label="Open menu">
-        <Menu size={20} />
+      <button className="mobile-menu-btn icon-btn" onClick={onMenuClick} aria-expanded={menuShown} aria-controls="main-menu"
+        aria-label={menuShown ? 'Hide menu' : 'Show menu'} title={menuShown ? 'Hide menu' : 'Show menu'}>
+        {menuShown ? <PanelLeftClose size={20} /> : <Menu size={20} />}
       </button>
       <h1 className="topbar-title">{title}</h1>
 
@@ -76,10 +80,7 @@ export default function Topbar({ title, onMenuClick }: TopbarProps) {
           aria-label={language === 'en' ? 'Switch to Tamil' : 'Switch to English'}>
           {language === 'en' ? 'அ' : 'A'}
         </button>
-        <button onClick={() => toggleTheme()} className="icon-btn" title={t('topbar.toggleTheme')}
-          aria-label={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}>
-          {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-        </button>
+
       </div>
     </header>
   );
