@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Plus, Trash2, Printer } from 'lucide-react';
 import Layout from '../components/layout/Layout';
 import { servicesApi, systemApi } from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -7,29 +8,49 @@ import { Service } from '../types';
 interface BillItem {
   id: string;
   name: string;
-  amount: string;
+  qty: string;
+  rate: string;
 }
+
+type Footer = 'DISCLAIMER' | 'SEAL_SIGN';
+
+const SHOP = {
+  name: 'RKS Xerox and Computer Center',
+  address: 'Opposite Taluk Office, Harur, Tamil Nadu 636903',
+  phone: '9942891322',
+  email: 'rksxerox@gmail.com',
+};
+
+const newItem = (): BillItem => ({ id: `${Date.now()}-${Math.random()}`, name: '', qty: '1', rate: '' });
+const amountOf = (i: BillItem) => (parseFloat(i.qty) || 0) * (parseFloat(i.rate) || 0);
+const inr = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** IST date (YYYY-MM-DD) and 24-hour time (HH:mm), the formats the date and time inputs use. */
+function istNow() {
+  const now = new Date();
+  return {
+    date: now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }),
+    time: now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }),
+  };
+}
+
+const displayDate = (ymd: string) => { const [y, m, d] = ymd.split('-'); return d && m && y ? `${d}/${m}/${y}` : ymd; };
+const displayTime = (hm: string) => {
+  const [h, m] = hm.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return hm;
+  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
+};
 
 export default function BillingPage() {
   const { user, isSuperAdmin } = useAuth();
-  
   const [services, setServices] = useState<Service[]>([]);
   const [customerName, setCustomerName] = useState('');
-  const [printMode, setPrintMode] = useState<'DISCLAIMER' | 'SEAL_SIGN'>('DISCLAIMER');
-  const [isColorMode, setIsColorMode] = useState(false);
-  
-  // Date/Time state
-  const now = new Date();
-  const defaultDate = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-  const defaultTime = now.toLocaleTimeString('en-IN', { hour12: true, timeZone: 'Asia/Kolkata' });
-  
-  const [manualDate, setManualDate] = useState(defaultDate);
-  const [manualTime, setManualTime] = useState(defaultTime);
-
-  // Items
-  const [items, setItems] = useState<BillItem[]>([
-    { id: Date.now().toString(), name: '', amount: '' }
-  ]);
+  const [footer, setFooter] = useState<Footer>('DISCLAIMER');
+  const [colour, setColour] = useState(false);
+  const [{ date, time }, setWhen] = useState(istNow);
+  const [items, setItems] = useState<BillItem[]>([newItem()]);
+  const [printing, setPrinting] = useState(false);
+  const [notice, setNotice] = useState('');
 
   useEffect(() => {
     servicesApi.list({ active: true })
@@ -37,374 +58,236 @@ export default function BillingPage() {
       .catch(console.error);
   }, []);
 
-  const handleAddItem = () => {
-    setItems([...items, { id: Date.now().toString() + Math.random(), name: '', amount: '' }]);
-  };
-
-  const handleRemoveItem = (id: string) => {
-    if (items.length === 1) return;
-    setItems(items.filter(item => item.id !== id));
-  };
-
-  const handleItemChange = (id: string, field: 'name' | 'amount', value: string) => {
-    setItems(items.map(item => {
-      if (item.id === id) {
-        const updatedItem = { ...item, [field]: value };
-        
-        // Auto-fill price if they selected a service exactly matching a catalog item
-        if (field === 'name') {
-          const matchedService = services.find(s => s.name === value);
-          if (matchedService) {
-            updatedItem.amount = matchedService.price.toString();
-          }
-        }
-        return updatedItem;
+  const update = (id: string, field: keyof Omit<BillItem, 'id'>, value: string) => {
+    setItems(list => list.map(item => {
+      if (item.id !== id) return item;
+      const next = { ...item, [field]: value };
+      // Picking a service from the list fills in its price
+      if (field === 'name') {
+        const service = services.find(s => s.name === value);
+        if (service) next.rate = String(service.price);
       }
-      return item;
+      return next;
     }));
   };
 
-  const total = items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+  const lines = items.filter(i => i.name.trim() || amountOf(i) > 0);
+  const total = items.reduce((sum, i) => sum + amountOf(i), 0);
 
-  const handlePrint = async (mode: 'DISCLAIMER' | 'SEAL_SIGN') => {
-    setPrintMode(mode);
-    // 1. Log the bill in the system
+  const handlePrint = async () => {
+    setPrinting(true);
+    setNotice('');
     try {
       await systemApi.logBill({
-        customerName: customerName || 'Walk-in Customer',
+        customerName: customerName.trim() || 'Walk-in customer',
         total,
-        items,
-        date: `${manualDate} ${manualTime}`
+        items: lines.map(i => ({ name: i.name, qty: Number(i.qty) || 0, rate: Number(i.rate) || 0, amount: String(amountOf(i)) })),
+        date: `${date} ${displayTime(time)}`,
       });
-    } catch (err) {
-      console.error('Failed to log bill:', err);
+    } catch {
+      // The bill still prints; it just won't appear in Printed bills
+      setNotice('Printed, but the bill could not be saved to Printed bills. Check the connection.');
     }
-    
-    // Wait for React to apply the printMode before triggering print
-    setTimeout(() => {
-      window.print();
-    }, 100);
+    setPrinting(false);
+    setTimeout(() => window.print(), 50);
   };
 
-  // Convert Date to DD/MM/YYYY for display
-  const displayDateParts = manualDate.split('-');
-  const displayDate = displayDateParts.length === 3 ? `${displayDateParts[2]}/${displayDateParts[1]}/${displayDateParts[0]}` : manualDate;
+  const reset = () => { setItems([newItem()]); setCustomerName(''); setWhen(istNow()); setNotice(''); };
 
   return (
-    <Layout title="Bill Generator">
+    <Layout title="Print a bill">
       <div className="page-header no-print">
         <div>
-          <div className="page-header-title">Bill Generator</div>
-          <div className="page-header-sub">Generate and print professional invoices</div>
+          <div className="page-header-title">Print a bill</div>
+          <div className="page-header-sub">Add what the customer took. The bill on the right is exactly what prints.</div>
         </div>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button 
-            className="btn btn-ghost" 
-            onClick={() => setIsColorMode(!isColorMode)}
-          >
-            {isColorMode ? '🎨 Color Mode (ON)' : '⚫ B/W Mode (ON)'}
-          </button>
-          <button className="btn btn-secondary" onClick={() => handlePrint('DISCLAIMER')} disabled={total === 0}>
-            🖨 Print (Disclaimer)
-          </button>
-          <button className="btn btn-primary" onClick={() => handlePrint('SEAL_SIGN')} disabled={total === 0}>
-            🖨 Print (Seal & Sign)
-          </button>
-        </div>
+        <button className="btn btn-ghost" onClick={reset}>Start a new bill</button>
       </div>
 
-      <div className="billing-container no-print" style={{ maxWidth: 800, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
-        
-        {/* CONFIG SECTION (Only visible on screen) */}
-        <div className="card">
-          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Bill Details</div>
-          
-          <div className="grid grid-2" style={{ gap: 16, marginBottom: 16 }}>
-            <div className="form-group mb-0">
-              <label className="form-label">Customer Name</label>
-              <input 
-                type="text" 
-                className="form-input" 
-                placeholder="Walk-in Customer" 
-                value={customerName} 
-                onChange={e => setCustomerName(e.target.value)} 
-              />
+      {notice && <div className="alert alert-warning mb-16 no-print">{notice}</div>}
+
+      <div className="bill-layout">
+        <section className="card bill-editor no-print" aria-labelledby="bill-edit-title">
+          <h2 id="bill-edit-title" className="sr-only">Bill details</h2>
+          <div className="form-group">
+            <label className="form-label" htmlFor="bill-customer">Customer</label>
+            <input id="bill-customer" className="form-input" placeholder="Walk-in customer" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+          </div>
+          <div className="form-grid" style={{ marginBottom: 18 }}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="bill-date">Date</label>
+              <input id="bill-date" type="date" className="form-input" value={date} disabled={!isSuperAdmin}
+                onChange={e => setWhen(w => ({ ...w, date: e.target.value }))} />
             </div>
-            
-            <div className="grid grid-2" style={{ gap: 16 }}>
-              <div className="form-group mb-0">
-                <label className="form-label">Date {isSuperAdmin ? '(Edit)' : '(Auto)'}</label>
-                <input 
-                  type="date" 
-                  className="form-input" 
-                  value={manualDate} 
-                  onChange={e => setManualDate(e.target.value)}
-                  disabled={!isSuperAdmin}
-                />
-              </div>
-              <div className="form-group mb-0">
-                <label className="form-label">Time {isSuperAdmin ? '(Edit)' : '(Auto)'}</label>
-                <input 
-                  type="time" 
-                  className="form-input" 
-                  value={manualTime.substring(0,5)} // Rough conversion for input
-                  onChange={e => {
-                    const d = new Date(`2000-01-01T${e.target.value}`);
-                    setManualTime(d.toLocaleTimeString('en-IN', { hour12: true }));
-                  }}
-                  disabled={!isSuperAdmin}
-                />
-              </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="bill-time">Time</label>
+              <input id="bill-time" type="time" className="form-input" value={time} disabled={!isSuperAdmin}
+                onChange={e => setWhen(w => ({ ...w, time: e.target.value }))} />
             </div>
           </div>
+          {!isSuperAdmin && <p className="form-hint" style={{ marginTop: -10, marginBottom: 16 }}>Date and time are set to now. A super admin can change them.</p>}
 
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, marginTop: 24 }}>Bill Items</div>
-          
-          <div className="items-list" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <datalist id="services-list">
-              {services.map(s => <option key={s.id} value={s.name} />)}
-            </datalist>
+          <datalist id="services-list">
+            {services.map(s => <option key={s.id} value={s.name} />)}
+          </datalist>
 
-            {items.map((item, index) => (
-              <div key={item.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                <div style={{ flex: 1 }}>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="Search service or type custom name..." 
-                    value={item.name} 
-                    onChange={e => handleItemChange(item.id, 'name', e.target.value)}
-                    list="services-list"
-                  />
-                </div>
-                <div style={{ width: 150 }}>
-                  <input 
-                    type="number" 
-                    className="form-input" 
-                    placeholder="Amount (₹)" 
-                    value={item.amount} 
-                    onChange={e => handleItemChange(item.id, 'amount', e.target.value)}
-                  />
-                </div>
-                <button 
-                  className="btn btn-ghost" 
-                  style={{ padding: '10px 12px', color: 'var(--red)' }} 
-                  onClick={() => handleRemoveItem(item.id)}
-                  disabled={items.length === 1}
-                >
-                  ✕
+          <div className="bill-lines-head" aria-hidden="true">
+            <span>Item</span><span>Qty</span><span>Rate (₹)</span><span />
+          </div>
+          <div className="bill-lines">
+            {items.map((item, i) => (
+              <div key={item.id} className="bill-line">
+                <input className="form-input" aria-label={`Item ${i + 1}`} placeholder="Service or anything else" list="services-list"
+                  value={item.name} onChange={e => update(item.id, 'name', e.target.value)} />
+                <input className="form-input" aria-label={`Quantity of item ${i + 1}`} type="number" inputMode="numeric" min={1}
+                  value={item.qty} onChange={e => update(item.id, 'qty', e.target.value)} />
+                <input className="form-input" aria-label={`Rate of item ${i + 1}`} type="number" inputMode="decimal" min={0} step="0.01"
+                  value={item.rate} onChange={e => update(item.id, 'rate', e.target.value)} />
+                <button type="button" className="icon-btn" aria-label={`Remove item ${i + 1}`} disabled={items.length === 1}
+                  onClick={() => setItems(list => list.filter(x => x.id !== item.id))}>
+                  <Trash2 size={17} />
                 </button>
               </div>
             ))}
           </div>
-
-          <button className="btn btn-ghost" style={{ marginTop: 16 }} onClick={handleAddItem}>
-            + Add Another Item
+          <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} onClick={() => setItems(list => [...list, newItem()])}>
+            <Plus size={15} /> Add a line
           </button>
 
-          <div style={{ marginTop: 24, padding: 16, background: 'var(--bg-secondary)', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 16, fontWeight: 600 }}>Grand Total</span>
-            <span style={{ fontSize: 24, fontWeight: 900, color: 'var(--color-accent)' }}>₹{total.toFixed(2)}</span>
-          </div>
-        </div>
-      </div>
+          <hr style={{ margin: '20px 0 16px' }} />
 
-      {/* ───────────────────────────────────────────────────────── */}
-      {/* PRINT TEMPLATE (Hidden on screen, shown in print) */}
-      {/* ───────────────────────────────────────────────────────── */}
-      <div className={`print-only invoice-container ${isColorMode ? 'color-mode' : 'bw-mode'}`}>
-        <div className="invoice-header">
-          <img src="/logo.png" alt="RKS Logo" className="invoice-logo" />
-          <div className="invoice-shop-details">
-            <h1 className="invoice-shop-name">RKS Xerox and Computer center</h1>
-            <p className="invoice-address">Opposite Taluk Office, Harur, Tamil Nadu 636903</p>
-            <p className="invoice-contact">Phone: 9942891322  |  Email: rksxerox@gmail.com</p>
+          <div className="form-group">
+            <span className="form-label" id="bill-ink">Print in</span>
+            <div className="seg" role="group" aria-labelledby="bill-ink" style={{ width: '100%' }}>
+              <button type="button" style={{ flex: 1 }} aria-pressed={!colour} onClick={() => setColour(false)}>Black and white</button>
+              <button type="button" style={{ flex: 1 }} aria-pressed={colour} onClick={() => setColour(true)}>Colour</button>
+            </div>
           </div>
-        </div>
-
-        <div className="invoice-meta">
-          <div className="meta-left">
-            <div><strong>Bill To:</strong> {customerName || 'Walk-in Customer'}</div>
-            <div><strong>Generated By:</strong> {user?.name}</div>
+          <div className="form-group">
+            <span className="form-label" id="bill-foot">Bottom of the bill</span>
+            <div className="seg" role="group" aria-labelledby="bill-foot" style={{ width: '100%' }}>
+              <button type="button" style={{ flex: 1 }} aria-pressed={footer === 'DISCLAIMER'} onClick={() => setFooter('DISCLAIMER')}>System bill, no signature</button>
+              <button type="button" style={{ flex: 1 }} aria-pressed={footer === 'SEAL_SIGN'} onClick={() => setFooter('SEAL_SIGN')}>Seal and signature</button>
+            </div>
           </div>
-          <div className="meta-right">
-            <div><strong>Date:</strong> {displayDate}</div>
-            <div><strong>Time:</strong> {manualTime}</div>
-          </div>
-        </div>
 
-        <table className="invoice-table">
-          <thead>
-            <tr>
-              <th style={{ width: '10%', textAlign: 'center' }}>S.No</th>
-              <th style={{ width: '65%', textAlign: 'left' }}>Particulars</th>
-              <th style={{ width: '25%', textAlign: 'right' }}>Amount (₹)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item, i) => (
-              <tr key={item.id}>
-                <td style={{ textAlign: 'center' }}>{i + 1}</td>
-                <td>{item.name || '---'}</td>
-                <td style={{ textAlign: 'right' }}>{parseFloat(item.amount || '0').toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={2} style={{ textAlign: 'right', fontWeight: 'bold' }}>Grand Total</td>
-              <td style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '1.1em' }}>₹{total.toFixed(2)}</td>
-            </tr>
-          </tfoot>
-        </table>
+          <button className="btn btn-primary btn-lg btn-full" style={{ marginTop: 6 }} disabled={total === 0 || printing} onClick={handlePrint}>
+            <Printer size={18} /> {printing ? 'Preparing' : `Print bill, ₹${inr(total)}`}
+          </button>
+        </section>
 
-        <div className="invoice-footer">
-          {printMode === 'DISCLAIMER' ? (
-            <>
-              <p><strong>Disclaimer:</strong> Applicable to whomsoever it may concern.</p>
-              <p><em>System generated bill. No signature required.</em></p>
-            </>
-          ) : (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 60 }}>
-              <div style={{ borderTop: '1px solid #000', paddingTop: 8, width: 200, textAlign: 'center' }}>
-                Customer Signature
+        {/* The bill: shown as a preview on screen, and the only thing that prints */}
+        <div className="bill-stage">
+          <article className={`bill-paper print-target${colour ? ' is-colour' : ''}`} aria-label="Bill preview">
+            <header className="bill-head">
+              <div className="bill-shop">{SHOP.name}</div>
+              <div className="bill-shop-sub">{SHOP.address}</div>
+              <div className="bill-shop-sub">Phone {SHOP.phone}, {SHOP.email}</div>
+            </header>
+
+            <div className="bill-meta">
+              <div>
+                <div><span>Bill to</span> {customerName.trim() || 'Walk-in customer'}</div>
+                <div><span>Prepared by</span> {user?.name}</div>
               </div>
-              <div style={{ borderTop: '1px solid #000', paddingTop: 8, width: 200, textAlign: 'center' }}>
-                Authorized Seal & Signature
+              <div style={{ textAlign: 'right' }}>
+                <div><span>Date</span> {displayDate(date)}</div>
+                <div><span>Time</span> {displayTime(time)}</div>
               </div>
             </div>
-          )}
+
+            <table className="bill-table">
+              <thead>
+                <tr><th style={{ width: '8%' }}>No.</th><th style={{ textAlign: 'left' }}>Particulars</th><th style={{ width: '10%' }}>Qty</th><th style={{ width: '16%' }}>Rate</th><th style={{ width: '20%' }}>Amount (₹)</th></tr>
+              </thead>
+              <tbody>
+                {(lines.length ? lines : [items[0]]).map((item, i) => (
+                  <tr key={item.id}>
+                    <td style={{ textAlign: 'center' }}>{i + 1}</td>
+                    <td>{item.name || <span className="bill-blank">Item</span>}</td>
+                    <td style={{ textAlign: 'center' }}>{item.qty || ''}</td>
+                    <td style={{ textAlign: 'right' }}>{item.rate ? inr(parseFloat(item.rate) || 0) : ''}</td>
+                    <td style={{ textAlign: 'right' }}>{inr(amountOf(item))}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr><td colSpan={4} style={{ textAlign: 'right' }}>Total</td><td style={{ textAlign: 'right' }}>₹{inr(total)}</td></tr>
+              </tfoot>
+            </table>
+
+            <footer className="bill-foot">
+              {footer === 'DISCLAIMER' ? (
+                <>
+                  <p><strong>Disclaimer:</strong> Applicable to whomsoever it may concern.</p>
+                  <p><em>System generated bill. No signature required.</em></p>
+                </>
+              ) : (
+                <div className="bill-signs">
+                  <div>Customer signature</div>
+                  <div>Authorised seal and signature</div>
+                </div>
+              )}
+            </footer>
+          </article>
         </div>
       </div>
 
       <style>{`
-        /* Hide print template on screen */
-        .print-only { display: none; }
+        .bill-layout { display: grid; grid-template-columns: minmax(320px, 440px) minmax(0, 1fr); gap: 24px; align-items: start; }
+        .bill-lines-head, .bill-line { display: grid; grid-template-columns: minmax(0, 1fr) 64px 96px 36px; gap: 8px; align-items: center; }
+        .bill-lines-head { font-size: var(--fs-xs); font-weight: 600; color: var(--graphite-3); padding: 0 2px 4px; }
+        .bill-lines { display: flex; flex-direction: column; gap: 8px; }
+        .bill-line .form-input[type=number] { padding-left: 8px; padding-right: 8px; text-align: right; }
 
-        /* Print Styles */
+        /* The preview: an A4 sheet on the desk */
+        .bill-stage { position: sticky; top: 0; background: var(--sheet-3); border-radius: var(--radius-lg); padding: 24px; }
+        .bill-paper {
+          --bill-ink: #111;
+          --bill-accent: #111;
+          --bill-rule: #111;
+          --bill-head-bg: #F2F2F2;
+          background: #fff; color: var(--bill-ink);
+          max-width: 640px; margin: 0 auto; aspect-ratio: 210 / 297;
+          padding: 40px 44px; box-shadow: 0 1px 3px rgba(30, 36, 48, 0.12), 0 12px 32px rgba(30, 36, 48, 0.1);
+          font-size: 13px; line-height: 1.5; display: flex; flex-direction: column;
+        }
+        .bill-paper.is-colour { --bill-accent: #1F3A93; --bill-rule: #1F3A93; --bill-head-bg: #E8EDFA; }
+        .bill-head { text-align: center; padding-bottom: 14px; border-bottom: 2px solid var(--bill-rule); margin-bottom: 16px; }
+        .bill-shop { font-size: 22px; font-weight: 700; font-stretch: 85%; color: var(--bill-accent); letter-spacing: 0.01em; }
+        .bill-shop-sub { font-size: 12px; color: #333; }
+        .bill-meta { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+        .bill-meta span { color: #555; margin-right: 4px; }
+        .bill-table { width: 100%; border-collapse: collapse; }
+        .bill-table th, .bill-table td { border: 1px solid var(--bill-rule); padding: 7px 9px; font-size: 12.5px; }
+        .bill-table th { background: var(--bill-head-bg); color: var(--bill-accent); font-weight: 650; text-align: center; }
+        .bill-table tfoot td { font-weight: 700; font-size: 14px; color: var(--bill-accent); }
+        .bill-table tbody tr:hover { background: none; }
+        .bill-blank { color: #aaa; }
+        .bill-foot { margin-top: auto; padding-top: 18px; border-top: 1px dashed #bbb; text-align: center; font-size: 11.5px; color: #333; }
+        .bill-signs { display: flex; justify-content: space-between; gap: 24px; padding-top: 48px; }
+        .bill-signs div { flex: 1; max-width: 200px; border-top: 1px solid #111; padding-top: 6px; }
+
+        @media (max-width: 1100px) {
+          .bill-layout { grid-template-columns: 1fr; }
+          .bill-stage { position: static; padding: 12px; }
+          .bill-paper { padding: 24px 20px; aspect-ratio: auto; min-height: 520px; }
+        }
+
         @media print {
-          @page { size: A4 portrait; margin: 15mm; }
-          body { 
-            -webkit-print-color-adjust: exact !important; 
-            print-color-adjust: exact !important; 
-            background: #fff !important; 
-            margin: 0; 
-            padding: 0; 
+          @page { size: A4 portrait; margin: 14mm; }
+          body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          /* the app's scroll containers would clip or offset the sheet: let it flow from the top-left */
+          html, body, #root, .app-layout, .main-content, .page-content, .page-inner, .bill-layout, .bill-stage {
+            height: auto !important; overflow: visible !important; position: static !important;
+            display: block !important; margin: 0 !important; padding: 0 !important; background: none !important;
           }
-          
-          body * {
-            visibility: hidden;
-          }
-          
-          .print-only, .print-only * {
-            visibility: visible;
-          }
-          
-          .print-only { 
-            display: block !important; 
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            margin: 0;
-          }
-          
-          .invoice-container {
-            width: 100%;
-            font-family: 'Inter', system-ui, sans-serif;
-            color: #000;
-          }
-
-          .invoice-header {
-            display: flex;
-            align-items: center;
-            border-bottom: 2px solid #000;
-            padding-bottom: 20px;
-            margin-bottom: 20px;
-          }
-
-          .invoice-logo {
-            width: 120px;
-            height: auto;
-            margin-right: 20px;
-          }
-
-          .bw-mode .invoice-logo {
-            filter: grayscale(100%);
-          }
-          
-          .color-mode .invoice-shop-name {
-            color: #570F8E;
-          }
-          .color-mode .invoice-table th {
-            background-color: rgba(87, 15, 142, 0.1) !important;
-            color: #570F8E;
-            border-color: #570F8E;
-          }
-          .color-mode .invoice-table td {
-            border-color: #570F8E;
-          }
-          .color-mode .invoice-table tfoot td {
-            color: #B8860B;
-            border-color: #570F8E;
-          }
-          .color-mode .invoice-header {
-            border-bottom: 2px solid #570F8E;
-          }
-
-          .invoice-shop-details {
-            flex: 1;
-            text-align: center;
-          }
-
-          .invoice-shop-name {
-            margin: 0 0 5px 0;
-            font-size: 24px;
-            font-weight: 900;
-            text-transform: uppercase;
-          }
-
-          .invoice-address, .invoice-contact {
-            margin: 0 0 3px 0;
-            font-size: 14px;
-          }
-
-          .invoice-meta {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 30px;
-            font-size: 14px;
-            line-height: 1.6;
-          }
-
-          .meta-right {
-            text-align: right;
-          }
-
-          .invoice-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 40px;
-          }
-
-          .invoice-table th, .invoice-table td {
-            border: 1px solid #000;
-            padding: 12px;
-            font-size: 14px;
-          }
-
-          .invoice-table th {
-            background-color: #f3f4f6 !important;
-            font-weight: bold;
-          }
-
-          .invoice-footer {
-            margin-top: 50px;
-            text-align: center;
-            font-size: 12px;
-            color: #333;
-            border-top: 1px dashed #ccc;
-            padding-top: 20px;
+          .sidebar, .topbar, .bottom-nav, .no-print { display: none !important; }
+          body * { visibility: hidden; }
+          .print-target, .print-target * { visibility: visible; }
+          .print-target {
+            position: absolute; left: 0; top: 0; width: 100%; max-width: none;
+            margin: 0; padding: 0; box-shadow: none; aspect-ratio: auto; min-height: calc(297mm - 28mm);
           }
         }
       `}</style>
