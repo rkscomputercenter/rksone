@@ -1,3 +1,4 @@
+import { Search } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import Layout from '../../components/layout/Layout';
 import { servicesApi } from '../../api';
@@ -45,7 +46,7 @@ function ServiceModal({ service, onClose, onSave }: ServiceModalProps) {
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <span className="modal-title">{service ? t('services.modalEdit' as any) : t('services.modalAdd' as any)}</span>
-          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+          <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
@@ -140,7 +141,7 @@ export default function ServicesPage() {
       {error && <div className="alert alert-error mb-16">{error}</div>}
 
       <div className="search-box" style={{ marginBottom: 20 }}>
-        <span className="search-icon">🔍</span>
+        <span className="search-icon"><Search size={16} /></span>
         <input className="form-input search-input" placeholder={t('services.search' as any)} value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
@@ -156,7 +157,7 @@ export default function ServicesPage() {
                     <tr key={s.id}>
                       <td style={{ fontWeight: 500 }}>{s.name}</td>
                       <td>
-                        <span className="badge" style={{ background: s.shop === 'SHOP_XEROX' ? '#fde68a' : '#bfdbfe', color: '#1f2937' }}>
+                        <span className="badge">
                           {s.shop?.replace('SHOP_', '') || 'COMPUTER'}
                         </span>
                       </td>
@@ -168,7 +169,7 @@ export default function ServicesPage() {
                           <button className={`btn btn-sm ${s.isActive ? 'btn-danger' : 'btn-success'}`} onClick={() => handleToggle(s)}>
                             {s.isActive ? t('services.deactivate' as any) : t('services.activate' as any)}
                           </button>
-                          <button className="btn btn-ghost btn-sm text-red" onClick={() => handleDelete(s)} title="Delete">🗑</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(s)}>Delete</button>
                         </div>
                       </td>
                     </tr>

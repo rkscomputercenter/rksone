@@ -36,7 +36,7 @@ export default function BillLogsPage() {
           <div className="page-header-title">Bill Logs</div>
           <div className="page-header-sub">History of all generated invoices and bills</div>
         </div>
-        <button className="btn btn-ghost" onClick={fetchLogs}>🔄 Refresh</button>
+        <button className="btn btn-ghost" onClick={fetchLogs}>Refresh</button>
       </div>
 
       <div className="card">
@@ -44,7 +44,7 @@ export default function BillLogsPage() {
           <div className="page-loading"><div className="spinner spinner-lg"></div>Loading bill logs...</div>
         ) : logs.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">📄</div>
+            
             <div className="empty-state-title">No Bills Generated</div>
             <div className="empty-state-sub">Generated bills will appear here.</div>
           </div>

@@ -1,148 +1,142 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { Plus, Wallet } from 'lucide-react';
 import Layout from '../../components/layout/Layout';
-import { expensesApi, banksApi } from '../../api';
+import { expensesApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
-import type { Expense, BankAccount } from '../../types';
+import { istDate, money } from '../../components/sales/SalesLedger';
+import type { Expense } from '../../types';
 
-const statusBadge = (s: string) => {
+const SHOP_LABEL: Record<string, string> = { SHOP_COMPUTER: 'Computer', SHOP_XEROX: 'Xerox' };
+
+export const statusBadge = (s: string) => {
   if (s === 'APPROVED') return <span className="badge badge-green">Approved</span>;
   if (s === 'REJECTED') return <span className="badge badge-red">Rejected</span>;
-  return <span className="badge badge-yellow">Pending</span>;
+  return <span className="badge badge-yellow">Waiting</span>;
 };
 
-function isToday(dateStr: string) {
-  return dateStr.startsWith(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }));
-}
-
-
+const time = (iso: string) => new Date(iso).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
 
 export default function ExpensesList() {
-  const { hasPermission, user } = useAuth();
+  const { hasPermission, user, isSuperAdmin } = useAuth();
   const canManage = hasPermission('allRecords');
-  const navigate = useNavigate();
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [banks, setBanks] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
-  const [date, setDate] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }));
+  const [date, setDate] = useState(istDate());
   const [shop, setShop] = useState('');
   const [error, setError] = useState('');
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const multiShop = (user?.shopAccess?.length ?? 0) > 1;
 
   const load = () => {
     setLoading(true);
-    const promises: Promise<any>[] = [expensesApi.list({ date, userId: user?.id, ...(shop && { shop }) })];
-    // Only users with permission can access the banks API
-    if (canManage) promises.push(banksApi.list());
-
-    Promise.all(promises).then(([expRes, bankRes]) => {
-      setExpenses(expRes.data.data ?? []);
-      if (bankRes) setBanks(bankRes.data.data ?? []);
-    }).finally(() => setLoading(false));
+    expensesApi.list({ date, userId: user?.id, ...(shop && { shop }) })
+      .then(r => setExpenses(r.data.data ?? []))
+      .catch(() => setError('The list didn’t load. Check the connection and try again.'))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, [date, shop]);
 
-
-
+  // Only super admins can delete expenses (the server refuses everyone else).
+  // Deleting an approved expense puts the money back into its bank.
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this expense?')) return;
-    try { await expensesApi.delete(id); load(); }
-    catch (err: any) { setError(err.response?.data?.error || 'Delete failed'); }
+    try { setError(''); await expensesApi.delete(id); setConfirmId(null); load(); }
+    catch (err: any) { setError(err.response?.data?.error || 'The expense was not deleted. Try again.'); }
   };
 
-  const total = expenses.filter(e => e.status === 'APPROVED').reduce((s, e) => s + Number(e.amount), 0);
-  const pending = expenses.filter(e => e.status === 'PENDING');
-  const totalBankBalance = banks.reduce((s, b) => s + Number(b.balance), 0);
+  const approvedTotal = expenses.filter(e => e.status === 'APPROVED').reduce((s, e) => s + Number(e.amount), 0);
+  const waiting = expenses.filter(e => e.status === 'PENDING').length;
+
+  const deleteControl = (e: Expense) => confirmId === e.id ? (
+    <span className="flex gap-8" style={{ justifyContent: 'flex-end' }}>
+      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(e.id)}>Delete{e.status === 'APPROVED' ? ' and refund' : ''}</button>
+      <button className="btn btn-ghost btn-sm" onClick={() => setConfirmId(null)}>Keep</button>
+    </span>
+  ) : <button className="btn btn-ghost btn-sm" onClick={() => setConfirmId(e.id)}>Delete</button>;
 
   return (
-    <Layout title="Expenses">
+    <Layout title="My expenses">
       <div className="page-header">
         <div>
-          <div className="page-header-title">Expenses</div>
-          <div className="page-header-sub">Daily expense tracking</div>
+          <div className="page-header-title">My expenses</div>
+          <div className="page-header-sub">
+            {canManage ? 'Your expenses are approved as you add them.' : 'An admin approves each expense before it counts.'}
+          </div>
         </div>
-        <div className="page-actions" style={{ display: 'flex', gap: 12 }}>
-          {canManage && (
-            <select className="form-select" value={shop} onChange={e => setShop(e.target.value)}>
-              <option value="">All Shops</option>
-              <option value="SHOP_COMPUTER">Computer Only</option>
-              <option value="SHOP_XEROX">Xerox Only</option>
-            </select>
-          )}
-          {canManage ? (
-            <input type="date" className="form-input" style={{ width: 160 }} value={date} onChange={e => setDate(e.target.value)} max={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })} />
-          ) : (
-            <div className="badge badge-blue" style={{ padding: '8px 12px' }}>Today: {date}</div>
-          )}
-          <button className="btn btn-primary" onClick={() => navigate('/expenses/new')}>+ Add Expense</button>
-        </div>
+        <Link to="/expenses/new" className="btn btn-primary"><Plus size={17} /> Add an expense</Link>
       </div>
 
-      {error && <div className="alert alert-error mb-16">{error}</div>}
-
-      <div className="card" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{expenses.length} records — {pending.length} pending</span>
-
-        {/* Bank balance summary — authorized only, Cash balance hidden */}
-        {canManage && banks.length > 0 && (
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {banks.map(b => (
-              <div key={b.id} style={{ background: 'var(--bg-secondary)', padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-color)', textAlign: 'center', minWidth: 100 }}>
-                <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>{b.name}</div>
-                {b.isCash ? (
-                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-muted)' }}>Cash</div>
-                ) : (
-                  <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--color-accent)' }}>₹{Number(b.balance).toLocaleString('en-IN')}</div>
-                )}
-              </div>
+      <div className="toolbar">
+        {multiShop && canManage && (
+          <div className="seg" role="group" aria-label="Shop">
+            {[['', 'Both shops'], ['SHOP_COMPUTER', 'Computer'], ['SHOP_XEROX', 'Xerox']].map(([value, label]) => (
+              <button key={value} type="button" aria-pressed={shop === value} onClick={() => setShop(value)}>{label}</button>
             ))}
           </div>
         )}
-
-        <div style={{ textAlign: 'right', paddingLeft: 16, borderLeft: '1px solid var(--border-color)' }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase' }}>Approved Total</div>
-          <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--red)' }}>₹{total.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
+        <div style={{ marginLeft: 'auto' }}>
+          {canManage
+            ? <input type="date" aria-label="Date" className="form-input" style={{ width: 170 }} value={date} max={istDate()} onChange={e => setDate(e.target.value || istDate())} />
+            : <span className="shop-tag">Today</span>}
         </div>
       </div>
 
+      <div className="sumline">
+        <span>{expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'}{waiting ? `, ${waiting} waiting for approval` : ''}</span>
+        <span className="sumline-total" style={{ color: 'var(--stamp)' }}>₹{money(approvedTotal)}</span>
+      </div>
+
+      {error && <div className="alert alert-error mb-16" role="alert">{error}</div>}
+
       {loading ? <div className="page-loading"><div className="spinner spinner-lg" /></div> : expenses.length === 0 ? (
-        <div className="empty-state"><div className="empty-state-icon">💸</div><div className="empty-state-title">No expenses for this date</div></div>
-      ) : (
-        <div className="table-wrapper">
-          <table>
-            <thead><tr>
-              <th>Category</th><th>Shop</th><th>Amount</th><th>Note</th><th>By</th><th>Bank</th><th>Status</th><th>Time</th>
-              {canManage && <th>Actions</th>}
-            </tr></thead>
-            <tbody>
-              {expenses.map(e => (
-                <tr key={e.id}>
-                  <td style={{ fontWeight: 600 }}>{e.category}</td>
-                  <td>
-                    <span className="badge" style={{ background: e.shop === 'SHOP_XEROX' ? '#fde68a' : '#bfdbfe', color: '#1f2937' }}>
-                      {e.shop?.replace('SHOP_', '') || 'COMPUTER'}
-                    </span>
-                  </td>
-                  <td style={{ fontWeight: 700, color: 'var(--red)' }}>₹{Number(e.amount).toFixed(2)}</td>
-                  <td style={{ color: 'var(--text-muted)' }}>{e.note || '—'}</td>
-                  <td style={{ color: 'var(--text-muted)' }}>{e.user.name}</td>
-                  <td style={{ fontSize: 12 }}>{e.bank?.name || <span className="text-muted">—</span>}</td>
-                  <td>{statusBadge(e.status)}</td>
-                  <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    {new Date(e.createdAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
-                  </td>
-                  {canManage && (
-                    <td>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        {isToday(e.createdAt) && <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(e.id)}>🗑</button>}
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="card empty-state">
+          <div className="empty-state-icon"><Wallet size={28} /></div>
+          <div className="empty-state-title">No expenses on this day</div>
+          <div className="empty-state-sub"><Link to="/expenses/new" className="btn-link">Add an expense</Link> when money goes out of the shop.</div>
         </div>
+      ) : (
+        <>
+          <div className="table-wrapper hide-mobile">
+            <table>
+              <thead><tr>
+                <th>Time</th><th>Category</th><th>Note</th>{multiShop && <th>Shop</th>}<th>Paid from</th><th>Status</th>
+                <th className="amount">Amount</th>{isSuperAdmin && <th className="amount"><span className="sr-only">Actions</span></th>}
+              </tr></thead>
+              <tbody>
+                {expenses.map(e => (
+                  <tr key={e.id}>
+                    <td className="text-muted">{time(e.createdAt)}</td>
+                    <td style={{ fontWeight: 600 }}>{e.category}</td>
+                    <td className="text-muted">{e.note || ''}</td>
+                    {multiShop && <td>{SHOP_LABEL[e.shop ?? 'SHOP_COMPUTER']}</td>}
+                    <td>{e.bank?.name || <span className="text-muted">Not yet</span>}</td>
+                    <td>{statusBadge(e.status)}</td>
+                    <td className="amount" style={{ fontWeight: 650, color: 'var(--stamp)' }}>₹{money(Number(e.amount))}</td>
+                    {isSuperAdmin && <td className="amount">{deleteControl(e)}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="card hide-desktop" style={{ padding: '4px 14px' }}>
+            <div className="ledger">
+              {expenses.map(e => (
+                <div key={e.id} className="ledger-row">
+                  <div className="ledger-main">{e.category}</div>
+                  <div className="ledger-amt amt-out">₹{money(Number(e.amount))}</div>
+                  <div className="ledger-meta">
+                    <span>{time(e.createdAt)}</span>
+                    {statusBadge(e.status)}
+                    {e.bank?.name && <span>{e.bank.name}</span>}
+                  </div>
+                  {e.note && <div className="text-xs text-muted" style={{ gridColumn: '1 / -1' }}>{e.note}</div>}
+                  {isSuperAdmin && <div style={{ gridColumn: '1 / -1', paddingTop: 4 }}>{deleteControl(e)}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
       )}
     </Layout>
   );

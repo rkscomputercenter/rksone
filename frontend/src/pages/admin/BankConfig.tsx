@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Banknote, Landmark, Plus } from 'lucide-react';
 import Layout from '../../components/layout/Layout';
 import { banksApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
@@ -10,6 +11,8 @@ interface ModalState {
   type: ModalType;
   bank?: BankAccount;
 }
+
+const inr = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function BankConfig() {
   const { isSuperAdmin } = useAuth();
@@ -30,7 +33,7 @@ export default function BankConfig() {
     setLoading(true);
     banksApi.list()
       .then(r => setBanks(r.data.data ?? []))
-      .catch(() => setError('Failed to load banks'))
+      .catch(() => setError('The accounts didn’t load. Check the connection and try again.'))
       .finally(() => setLoading(false));
   };
 
@@ -61,302 +64,210 @@ export default function BankConfig() {
     try {
       switch (modal.type) {
         case 'addBank': {
-          if (!newName.trim()) { setError('Name is required'); setSubmitting(false); return; }
-          const bal = parseFloat(amount) || 0;
-          await banksApi.create({ name: newName.trim(), balance: bal, isCash });
-          showSuccess(`${isCash ? 'Cash account' : 'Bank'} '${newName}' created`);
+          if (!newName.trim()) { setError('Give the account a name.'); setSubmitting(false); return; }
+          await banksApi.create({ name: newName.trim(), balance: parseFloat(amount) || 0, isCash });
+          showSuccess(`Added ${newName.trim()}.`);
           break;
         }
         case 'rename': {
-          if (!bank || !newName.trim()) { setError('Name is required'); setSubmitting(false); return; }
+          if (!bank || !newName.trim()) { setError('Enter the new name.'); setSubmitting(false); return; }
           await banksApi.rename(bank.id, newName.trim());
-          showSuccess(`Renamed to '${newName}'`);
+          showSuccess(`Renamed to ${newName.trim()}.`);
           break;
         }
         case 'deposit': {
           if (!bank) break;
           const val = parseFloat(amount);
-          if (!val || val <= 0) { setError('Enter a valid positive amount'); setSubmitting(false); return; }
+          if (!val || val <= 0) { setError('Enter an amount greater than 0.'); setSubmitting(false); return; }
           await banksApi.deposit(bank.id, val, note || undefined);
-          showSuccess(`₹${val.toLocaleString()} deposited to ${bank.name}`);
+          showSuccess(`Added ₹${inr(val)} to ${bank.name}.`);
           break;
         }
         case 'adjust': {
           if (!bank) break;
           const val = parseFloat(amount);
-          if (!val || val === 0) { setError('Enter a non-zero amount (use negative to subtract)'); setSubmitting(false); return; }
+          if (!val) { setError('Enter a positive amount to add, or a negative amount to take out.'); setSubmitting(false); return; }
           await banksApi.adjust(bank.id, val, note || undefined);
-          showSuccess(`${bank.name} balance adjusted by ₹${val >= 0 ? '+' : ''}${val}`);
+          showSuccess(`${bank.name} adjusted by ${val >= 0 ? '+' : '−'}₹${inr(Math.abs(val))}.`);
           break;
         }
         case 'setBalance': {
           if (!bank) break;
           const val = parseFloat(amount);
-          if (isNaN(val) || val < 0) { setError('Enter a valid non-negative amount'); setSubmitting(false); return; }
+          if (isNaN(val) || val < 0) { setError('Enter a balance of 0 or more.'); setSubmitting(false); return; }
           await banksApi.setBalance(bank.id, val, note || undefined);
-          showSuccess(`${bank.name} balance set to ₹${val}`);
+          showSuccess(`${bank.name} balance set to ₹${inr(val)}.`);
           break;
         }
         case 'hardReset': {
           if (!bank) break;
           await banksApi.hardReset(bank.id, note || undefined);
-          showSuccess(`${bank.name} balance hard reset to ₹0.00`);
+          showSuccess(`${bank.name} reset to ₹0.`);
           break;
         }
         case 'delete': {
           if (!bank) break;
           await banksApi.delete(bank.id);
-          showSuccess(`${bank.name} deleted`);
+          showSuccess(`${bank.name} deleted.`);
           break;
         }
       }
       closeModal();
       load();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Operation failed');
+      setError(err.response?.data?.error || 'That didn’t go through. Nothing was changed; try again.');
     } finally { setSubmitting(false); }
   };
 
+  const name = modal.bank?.name ?? '';
+  const TITLES: Record<Exclude<ModalType, null>, string> = {
+    addBank: 'Add an account',
+    rename: `Rename ${name}`,
+    deposit: `Add money to ${name}`,
+    adjust: `Adjust ${name}`,
+    setBalance: `Correct the balance of ${name}`,
+    hardReset: `Reset ${name} to ₹0`,
+    delete: `Delete ${name}`,
+  };
+  const BUTTONS: Record<Exclude<ModalType, null>, string> = {
+    addBank: 'Add account', rename: 'Rename', deposit: 'Add money', adjust: 'Apply adjustment',
+    setBalance: 'Set balance', hardReset: 'Reset to ₹0', delete: 'Delete account',
+  };
+  const danger = modal.type === 'delete' || modal.type === 'hardReset' || modal.type === 'setBalance';
+  const amountLabel = modal.type === 'deposit' ? 'Amount to add (₹)' : modal.type === 'adjust' ? 'Adjustment (₹)' : 'Correct balance (₹)';
 
   return (
-    <Layout title="Bank Configuration">
+    <Layout title="Bank settings">
       <div className="page-header">
         <div>
-          <div className="page-header-title">Bank Configuration</div>
-          <div className="page-header-sub">Manage bank accounts, balances, and settings</div>
+          <div className="page-header-title">Bank settings</div>
+          <div className="page-header-sub">Add, rename or remove accounts, and correct balances.</div>
         </div>
         {isSuperAdmin && (
-          <button className="btn btn-primary" onClick={() => open('addBank')}>
-            + Add Bank / Cash
-          </button>
+          <button className="btn btn-primary" onClick={() => open('addBank')}><Plus size={17} /> Add an account</button>
         )}
       </div>
 
-      {error && !modal.type && <div className="alert alert-error mb-16">{error}</div>}
-      {success && <div className="alert alert-success mb-16">✅ {success}</div>}
+      {error && !modal.type && <div className="alert alert-error mb-16" role="alert">{error}</div>}
+      {success && <div className="alert alert-success mb-16" aria-live="polite">{success}</div>}
 
       {loading ? (
         <div className="page-loading"><div className="spinner spinner-lg" /></div>
+      ) : banks.length === 0 ? (
+        <div className="card empty-state"><div className="empty-state-title">No accounts yet</div></div>
       ) : (
-        <>
-          {/* All Banks + Cash unified */}
-          <div className="cfg-section-title">All Accounts</div>
-          <div className="cfg-grid">
-            {banks.map(bank => (
-              <div key={bank.id} className={`cfg-card ${bank.isCash ? 'cash-cfg-card' : ''}`}>
-                <div className="cfg-card-top">
-                  <div className="cfg-bank-icon">{bank.isCash ? '💵' : '🏦'}</div>
-                  <div className="cfg-bank-info">
-                    <div className="cfg-bank-name">{bank.name}</div>
-                    {bank.isCash ? (
-                      <div style={{ fontSize: 11, color: '#d97706', fontWeight: 700, marginTop: 4 }}>Cash Payment • No balance display</div>
-                    ) : (
-                      <div className="cfg-bank-balance">
-                        ₹{Number(bank.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="cfg-actions">
-                  <button className="btn btn-primary btn-sm" onClick={() => open('deposit', bank)}>
-                    💰 Deposit
-                  </button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => open('adjust', bank)}>
-                    ↕ Adjust
-                  </button>
-                  {isSuperAdmin && (
-                    <>
-                      <button className="btn btn-ghost btn-sm" onClick={() => open('rename', bank)}>
-                        ✏️ Rename
-                      </button>
-                      {!bank.isCash && (
-                        <>
-                          <button className="btn btn-ghost btn-sm" onClick={() => open('setBalance', bank)}>
-                            📌 Set Absolute
-                          </button>
-                          <button className="btn btn-warning btn-sm" onClick={() => open('hardReset', bank)}>
-                            🔄 Hard Reset
-                          </button>
-                        </>
-                      )}
-                      <button className="btn btn-danger btn-sm" onClick={() => open('delete', bank)}>
-                        🗑 Delete
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-            {banks.length === 0 && (
-              <div className="empty-sub" style={{ gridColumn: '1/-1' }}>No bank accounts yet.</div>
-            )}
-          </div>
-        </>
+        <div className="table-wrapper">
+          <table>
+            <thead><tr><th>Account</th><th>Type</th><th className="amount">Balance</th><th className="amount"><span className="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              {banks.map(bank => (
+                <tr key={bank.id}>
+                  <td style={{ fontWeight: 600 }}>
+                    <span className="flex gap-8" style={{ alignItems: 'center' }}>
+                      {bank.isCash ? <Banknote size={16} color="var(--graphite-3)" /> : <Landmark size={16} color="var(--graphite-3)" />}
+                      {bank.name}
+                    </span>
+                  </td>
+                  <td className="text-muted">{bank.isCash ? 'Cash, balance hidden' : 'Bank'}</td>
+                  <td className="amount" style={{ fontWeight: 600 }}>{bank.isCash ? '' : `₹${inr(Number(bank.balance))}`}</td>
+                  <td className="amount">
+                    <span className="flex gap-8" style={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                      <button className="btn btn-ghost btn-sm" onClick={() => open('deposit', bank)}>Add money</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => open('adjust', bank)}>Adjust</button>
+                      {isSuperAdmin && <button className="btn btn-ghost btn-sm" onClick={() => open('rename', bank)}>Rename</button>}
+                      {isSuperAdmin && !bank.isCash && <button className="btn btn-ghost btn-sm" onClick={() => open('setBalance', bank)}>Correct balance</button>}
+                      {isSuperAdmin && !bank.isCash && <button className="btn btn-ghost btn-sm" onClick={() => open('hardReset', bank)}>Reset</button>}
+                      {isSuperAdmin && <button className="btn btn-danger btn-sm" onClick={() => open('delete', bank)}>Delete</button>}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-
-      {/* ═══ MODALS ═══════════════════════════════════════════ */}
 
       {modal.type && (
         <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="cfg-title" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
             <div className="modal-header">
-              <span className="modal-title">
-                {modal.type === 'addBank' && '➕ Add New Account'}
-                {modal.type === 'rename' && `✏️ Rename: ${modal.bank?.name}`}
-                {modal.type === 'deposit' && `💰 Deposit → ${modal.bank?.name}`}
-                {modal.type === 'adjust' && `↕ Adjust Balance: ${modal.bank?.name}`}
-                {modal.type === 'setBalance' && `📌 Set Absolute Balance: ${modal.bank?.name}`}
-                {modal.type === 'hardReset' && `🔄 Hard Reset: ${modal.bank?.name}`}
-                {modal.type === 'delete' && `🗑 Delete: ${modal.bank?.name}`}
-              </span>
-              <button className="btn btn-ghost btn-sm" onClick={closeModal}>✕</button>
+              <h2 id="cfg-title" className="modal-title">{TITLES[modal.type]}</h2>
             </div>
             <div className="modal-body">
-              {error && <div className="alert alert-error mb-12">{error}</div>}
+              {error && <div className="alert alert-error" role="alert">{error}</div>}
 
-              {/* Add Bank */}
               {modal.type === 'addBank' && (
                 <>
                   <div className="form-group">
-                    <label className="form-label">Account Name</label>
-                    <input className="form-input" placeholder="e.g. Axis Bank, Petty Cash" value={newName} onChange={e => setNewName(e.target.value)} autoFocus />
+                    <label className="form-label" htmlFor="cfg-name">Account name</label>
+                    <input id="cfg-name" className="form-input" placeholder="e.g. Axis Bank, petty cash" value={newName} onChange={e => setNewName(e.target.value)} autoFocus />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Type</label>
-                    <div style={{ display: 'flex', gap: 12 }}>
-                      <label className={`type-toggle ${!isCash ? 'active' : ''}`} onClick={() => setIsCash(false)}>
-                        🏦 Bank (tracks balance)
-                      </label>
-                      <label className={`type-toggle ${isCash ? 'active' : ''}`} onClick={() => setIsCash(true)}>
-                        💵 Cash (no balance)
-                      </label>
+                    <span className="form-label" id="cfg-type">Type</span>
+                    <div className="seg seg-lg" role="group" aria-labelledby="cfg-type">
+                      <button type="button" aria-pressed={!isCash} onClick={() => setIsCash(false)}>Bank, tracks balance</button>
+                      <button type="button" aria-pressed={isCash} onClick={() => setIsCash(true)}>Cash</button>
                     </div>
                   </div>
                   {!isCash && (
                     <div className="form-group">
-                      <label className="form-label">Opening Balance (₹)</label>
-                      <input className="form-input" type="number" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} />
+                      <label className="form-label" htmlFor="cfg-open">Opening balance (₹)</label>
+                      <input id="cfg-open" className="form-input" type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} />
                     </div>
                   )}
                 </>
               )}
 
-              {/* Rename */}
               {modal.type === 'rename' && (
-                <div className="form-group">
-                  <label className="form-label">New Name</label>
-                  <input className="form-input" placeholder="Enter new name" value={newName} onChange={e => setNewName(e.target.value)} autoFocus />
-                </div>
-              )}
-
-              {/* Deposit */}
-              {modal.type === 'deposit' && (
                 <>
+                  <div className="alert alert-warning">The end-of-day cash and online totals go to the accounts named CASH-BALANCE and CANARA BANK. Renaming either one stops those totals.</div>
                   <div className="form-group">
-                    <label className="form-label">Amount to Deposit (₹)</label>
-                    <input className="form-input" type="number" placeholder="0.00" min="0.01" value={amount} onChange={e => setAmount(e.target.value)} autoFocus />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Reference Note</label>
-                    <input className="form-input" placeholder="e.g. Monthly salary, Client payment..." value={note} onChange={e => setNote(e.target.value)} />
+                    <label className="form-label" htmlFor="cfg-rename">New name</label>
+                    <input id="cfg-rename" className="form-input" value={newName} onChange={e => setNewName(e.target.value)} autoFocus />
                   </div>
                 </>
               )}
 
-              {/* Adjust */}
-              {modal.type === 'adjust' && (
+              {(modal.type === 'deposit' || modal.type === 'adjust' || modal.type === 'setBalance') && (
                 <>
-                  <div className="alert alert-info mb-12">
-                    ℹ️ Use a <strong>positive</strong> value to add, <strong>negative</strong> to subtract.
+                  {modal.type === 'adjust' && <div className="alert alert-info">Enter a positive amount to add, or a negative amount to take out.</div>}
+                  {modal.type === 'setBalance' && <div className="alert alert-warning">Replaces the balance with the number you enter. Use only to match the bank statement.</div>}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="cfg-amount">{amountLabel}</label>
+                    <input id="cfg-amount" className="form-input" type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} autoFocus
+                      style={{ minHeight: 50, fontSize: 'var(--fs-xl)', fontWeight: 650 }} />
+                    {modal.bank && !modal.bank.isCash && <span className="form-hint">Now ₹{inr(Number(modal.bank.balance))}</span>}
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Adjustment Amount (₹)</label>
-                    <input className="form-input" type="number" placeholder="+500 or -200" value={amount} onChange={e => setAmount(e.target.value)} autoFocus />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Reason</label>
-                    <input className="form-input" placeholder="Why is this adjustment being made?" value={note} onChange={e => setNote(e.target.value)} />
+                    <label className="form-label" htmlFor="cfg-note">{modal.type === 'deposit' ? 'Note (optional)' : 'Reason'}</label>
+                    <input id="cfg-note" className="form-input" value={note} onChange={e => setNote(e.target.value)} />
                   </div>
                 </>
               )}
 
-              {/* Set Absolute Balance */}
-              {modal.type === 'setBalance' && (
-                <>
-                  <div className="alert alert-warning mb-12">
-                    ⚠️ This overrides the current balance entirely. Use for reconciliation only.
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">New Absolute Balance (₹)</label>
-                    <input className="form-input" type="number" placeholder="0.00" min="0" value={amount} onChange={e => setAmount(e.target.value)} autoFocus />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Reason</label>
-                    <input className="form-input" placeholder="e.g. Bank statement reconciliation" value={note} onChange={e => setNote(e.target.value)} />
-                  </div>
-                </>
-              )}
-
-              {/* Hard Reset */}
               {modal.type === 'hardReset' && (
                 <>
-                  <div className="alert alert-error mb-12">
-                    🔴 This will reset <strong>{modal.bank?.name}</strong>'s balance to ₹0.00. This cannot be undone.
-                  </div>
+                  <div className="alert alert-error">The balance of {name} becomes ₹0.00. The reset is logged, but it can’t be undone.</div>
                   <div className="form-group">
-                    <label className="form-label">Reason (optional)</label>
-                    <input className="form-input" placeholder="Why is this being reset?" value={note} onChange={e => setNote(e.target.value)} autoFocus />
+                    <label className="form-label" htmlFor="cfg-reason">Reason (optional)</label>
+                    <input id="cfg-reason" className="form-input" value={note} onChange={e => setNote(e.target.value)} autoFocus />
                   </div>
                 </>
               )}
 
-              {/* Delete */}
               {modal.type === 'delete' && (
-                <div className="alert alert-error">
-                  🗑 Are you sure you want to delete <strong>{modal.bank?.name}</strong>?
-                  This will fail if any expenses are linked to it.
-                </div>
+                <div className="alert alert-error">Delete {name}? This is refused while any expense is linked to it.</div>
               )}
             </div>
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={closeModal}>Cancel</button>
-              <button
-                className={`btn ${modal.type === 'delete' || modal.type === 'hardReset' ? 'btn-danger' : 'btn-primary'}`}
-                disabled={submitting}
-                onClick={handleSubmit}
-              >
-                {submitting ? 'Processing...' : (
-                  modal.type === 'addBank' ? 'Create Account' :
-                  modal.type === 'rename' ? 'Rename' :
-                  modal.type === 'deposit' ? 'Confirm Deposit' :
-                  modal.type === 'adjust' ? 'Apply Adjustment' :
-                  modal.type === 'setBalance' ? 'Update Balance' :
-                  modal.type === 'hardReset' ? '⚠ Reset to ₹0' :
-                  modal.type === 'delete' ? 'Delete Account' : 'Confirm'
-                )}
+              <button className={`btn ${danger ? 'btn-danger' : 'btn-primary'}`} disabled={submitting} onClick={handleSubmit}>
+                {submitting ? <><span className="spinner" /> Saving</> : BUTTONS[modal.type]}
               </button>
             </div>
           </div>
         </div>
       )}
-
-      <style>{`
-        .cfg-section-title { font-size: 14px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
-        .cfg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
-        .cfg-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; }
-        .cash-cfg-card { border: 2px dashed #d97706; background: rgba(251,191,36,0.04); }
-        .cfg-card-top { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
-        .cfg-bank-icon { font-size: 28px; }
-        .cfg-bank-name { font-weight: 800; font-size: 15px; color: var(--text-primary); }
-        .cfg-bank-balance { font-size: 22px; font-weight: 900; color: var(--color-accent); margin-top: 4px; }
-        .cfg-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-        .btn-warning { background: rgba(251,191,36,0.15); color: #d97706; border: 1px solid rgba(251,191,36,0.3); }
-        .btn-warning:hover { background: rgba(251,191,36,0.25); }
-        .type-toggle { flex: 1; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; color: var(--text-muted); }
-        .type-toggle.active { border-color: var(--color-primary); background: rgba(var(--color-primary-rgb, 99,102,241), 0.08); color: var(--color-primary); }
-        .mb-12 { margin-bottom: 12px; }
-        .empty-sub { padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px; background: var(--bg-secondary); border-radius: 8px; border: 1px dashed var(--border-color); }
-      `}</style>
     </Layout>
   );
 }

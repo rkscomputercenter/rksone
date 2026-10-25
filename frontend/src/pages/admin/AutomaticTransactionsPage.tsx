@@ -67,7 +67,7 @@ export default function AutomaticTransactionsPage() {
         </div>
         <div className="page-header-actions">
           <button className="btn btn-primary" onClick={handleTrigger} disabled={loading}>
-            <span className="icon">⚡</span> Run Reconciliations Now
+            Run end-of-day totals now
           </button>
         </div>
       </div>
@@ -79,7 +79,7 @@ export default function AutomaticTransactionsPage() {
           <div className="page-loading"><div className="spinner spinner-lg" /></div>
         ) : transactions.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">⚙️</div>
+            
             <div className="empty-state-title">No automatic transactions yet</div>
             <div className="empty-state-sub">Cron jobs run at 8:00 PM and 11:59 PM daily.</div>
           </div>

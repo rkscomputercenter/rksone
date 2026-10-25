@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Capacitor } from '@capacitor/core';
+import { ArrowLeft } from 'lucide-react';
 import api from '../api/client';
 
 export default function ForgotPasswordPage() {
@@ -12,92 +12,58 @@ export default function ForgotPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim()) {
-      setError('Please enter your username');
+      setError('Enter your username.');
       return;
     }
     setLoading(true);
     setError('');
-    
+
     try {
       await api.post('/auth/forgot-password', { username: username.trim() });
       setSuccess(true);
     } catch (err: any) {
-      console.error(err);
-      setError(err.response?.data?.error || 'Failed to submit request');
+      setError(err.response?.data?.error || 'The request wasn’t sent. Check the connection and try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const formContent = (
-    <>
-      <div style={{ marginBottom: 32, textAlign: 'center' }}>
-        <h2 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}>Reset Password</h2>
-        <p style={{ color: 'var(--text-muted)' }}>Enter your username to request a password reset from Super Admins.</p>
-      </div>
-
-      {success ? (
-        <div style={{ textAlign: 'center', padding: '20px' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>✅</div>
-          <h3 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>Request Sent</h3>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Your password reset request has been sent to Super Admins. Please wait for them to provide you with a new password.</p>
-          <Link to="/login" className="btn btn-primary btn-full" style={{ display: 'inline-block', textDecoration: 'none' }}>
-            Back to Login
-          </Link>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {error && (
-            <div className="alert alert-error" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '12px', borderRadius: '12px', fontSize: '14px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-              {error}
-            </div>
-          )}
-
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" style={{ fontWeight: 600 }}>Username</label>
-            <input
-              className="form-input"
-              type="text"
-              placeholder="e.g. johndoe"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              autoFocus
-              style={{ height: 48, fontSize: 16 }}
-            />
-          </div>
-
-          <button type="submit" className="btn btn-primary btn-full" disabled={loading} style={{ height: 48, fontSize: 16, marginTop: 8, fontWeight: 700 }}>
-            {loading ? 'Sending Request...' : 'Request Password Reset'}
-          </button>
-          
-          <div style={{ textAlign: 'center', marginTop: '16px' }}>
-            <Link to="/login" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '14px', fontWeight: 600 }}>
-              ← Back to Login
-            </Link>
-          </div>
-        </form>
-      )}
-
-      <p style={{ textAlign: 'center', marginTop: 32, fontSize: 12, color: 'var(--text-muted)' }}>
-        Need help? Contact <a href="mailto:support.rksshop@gmail.com" style={{ color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 600 }}>support.rksshop@gmail.com</a>
-      </p>
-    </>
-  );
-
-  if (Capacitor.isNativePlatform()) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--bg-base)', fontFamily: 'Inter, sans-serif', padding: '24px', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: '100%', maxWidth: '400px', background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '24px', padding: '40px 32px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column' }}>
-          {formContent}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)', fontFamily: 'Inter, sans-serif', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ width: '100%', maxWidth: 450, background: 'var(--bg-surface)', padding: '40px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: '0 8px 32px rgba(0,0,0,0.05)' }}>
-        {formContent}
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 'calc(24px + env(safe-area-inset-top, 0px)) 16px 24px', background: 'var(--paper)' }}>
+      <div style={{ width: '100%', maxWidth: 400 }}>
+        <Link to="/login" className="btn-link text-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 14 }}>
+          <ArrowLeft size={15} /> Sign in
+        </Link>
+        <div className="slip">
+          <div className="slip-head">
+            <div>
+              <h1 className="slip-title">Forgot your password?</h1>
+              <div className="slip-meta">A super admin sets a new one for you.</div>
+            </div>
+          </div>
+
+          {success ? (
+            <>
+              <div className="alert alert-success mb-16">Request sent. A super admin will give you a new password, usually in person or by phone.</div>
+              <Link to="/login" className="btn btn-primary btn-lg btn-full">Back to sign in</Link>
+            </>
+          ) : (
+            <form onSubmit={handleSubmit} noValidate>
+              {error && <div className="alert alert-error mb-16" role="alert">{error}</div>}
+              <div className="form-group">
+                <label className="form-label" htmlFor="fp-user">Username</label>
+                <input id="fp-user" className="form-input" type="text" value={username} onChange={e => setUsername(e.target.value)}
+                  autoFocus autoComplete="username" autoCapitalize="none" spellCheck={false} style={{ minHeight: 48 }} />
+              </div>
+              <button type="submit" className="btn btn-primary btn-lg btn-full" disabled={loading} style={{ marginTop: 6 }}>
+                {loading ? <><span className="spinner" /> Sending</> : 'Ask for a new password'}
+              </button>
+            </form>
+          )}
+        </div>
+        <p className="text-sm text-muted" style={{ marginTop: 20, textAlign: 'center' }}>
+          Stuck? Write to <a href="mailto:support.rksshop@gmail.com" className="btn-link">support.rksshop@gmail.com</a>
+        </p>
       </div>
     </div>
   );

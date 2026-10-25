@@ -50,11 +50,11 @@ export default function IncomeManagementPage() {
 
       <div style={{ maxWidth: 600, margin: '0 auto' }}>
         <div className="alert alert-warning" style={{ marginBottom: 24 }}>
-          ⚠️ <strong>Warning:</strong> Adjustments made here are permanent and will instantly alter the Analytics charts for the selected date. This creates native transactions/expenses to keep math accurate.
+          <strong>Careful:</strong> Adjustments made here are permanent and will instantly alter the Analytics charts for the selected date. This creates native transactions/expenses to keep math accurate.
         </div>
 
         {error && <div className="alert alert-error mb-16">{error}</div>}
-        {success && <div className="alert alert-success mb-16">✅ {success}</div>}
+        {success && <div className="alert alert-success mb-16">{success}</div>}
 
         <div className="card">
           <form onSubmit={handleSubmit}>
@@ -78,22 +78,22 @@ export default function IncomeManagementPage() {
                   style={{ 
                     flex: 1, padding: 12, border: '2px solid var(--border-color)', borderRadius: 8, 
                     textAlign: 'center', cursor: 'pointer', fontWeight: 600,
-                    ...(type === 'INCOME' ? { borderColor: 'var(--green)', background: 'rgba(34,197,94,0.08)', color: 'var(--green)' } : { color: 'var(--text-muted)' })
+                    ...(type === 'INCOME' ? { borderColor: 'var(--green)', background: 'var(--cash-wash)', color: 'var(--green)' } : { color: 'var(--text-muted)' })
                   }}
                   onClick={() => setType('INCOME')}
                 >
-                  📈 Add Income
+                  Add income
                 </label>
                 <label 
                   className="type-toggle" 
                   style={{ 
                     flex: 1, padding: 12, border: '2px solid var(--border-color)', borderRadius: 8, 
                     textAlign: 'center', cursor: 'pointer', fontWeight: 600,
-                    ...(type === 'EXPENSE' ? { borderColor: 'var(--red)', background: 'rgba(239,68,68,0.08)', color: 'var(--red)' } : { color: 'var(--text-muted)' })
+                    ...(type === 'EXPENSE' ? { borderColor: 'var(--red)', background: 'var(--stamp-wash)', color: 'var(--red)' } : { color: 'var(--text-muted)' })
                   }}
                   onClick={() => setType('EXPENSE')}
                 >
-                  📉 Add Expense
+                  Add expense
                 </label>
               </div>
             </div>

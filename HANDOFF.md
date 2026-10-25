@@ -15,6 +15,21 @@ Supersedes the `rks.qenbel.site` single-server plan below. Setup steps: `DEPLOYM
 - **Verified locally:** 31 backend tests pass; both typechecks; production build contains `api.rksone.qenbel.site`; against a local backend: preflight, login, authenticated call and websocket from origin `https://rksone.qenbel.site` succeed, and a foreign origin gets no CORS header.
 - **Not done (needs the user / accounts):** create the Vercel project and the Render blueprint, DNS records, `APK_URL`, then the bridge APK (`versionCode` bump, built with the new origins).
 
+## 0b. Update 2026-10-25: UI redesign, "counter bill book" (branch `feat/ui-redesign`)
+- **Tokens:** `frontend/src/styles/index.css` holds every color, type and radius token. Light: paper `#F4F6F9`, white sheets, rule `#D5DAE3`, graphite `#1E2430`, carbon-ink blue `#1F3A93`, cash green `#1E7A4C`, stamp red `#C8102E`. Dark: navy `#0F1A33`. Every old variable (`--bg-card`, `--color-primary`, `--green`, …, and the undefined `--border-color`/`--bg-secondary` pages used) is an alias, so untouched pages follow the theme.
+- **Themes:** light + dark only (`ThemeContext`). Black-gold and glass are gone; saved values map to dark. Initial theme follows the OS. `index.html` sets it before first paint.
+- **Type:** Anek Tamil (variable width and weight, has Tamil glyphs; Inter had none). Figures use tabular numerals.
+- **Signature:** the bill-book slip (`.slip`: perforated top edge, carbon copy behind, entry number stamped in ink) on New sale, Sign in, Forgot password and Download. Saving a sale shows the one animation: a "Saved" stamp.
+- **Rebuilt pages:** shell (sidebar with lucide icons, topbar with a shop segmented switch, phone bottom bar with New sale in the middle), Login, Dashboard (day line: cash, online, expenses, net; month chart; latest sales; bank balances), New sale, Sales (shared `components/sales/SalesLedger`), All sales, My expenses, Add an expense, All expenses (inline review queue: pick an account, then Approve or Reject), Bank book, Bank settings, Analytics + Staff performance (shared `components/analytics/Figures`), Users, Profile, Forgot password, Download, Maintenance, Not available, updater prompt, calculator. Other admin pages restyled through the tokens, with emoji and hard-coded colors removed. Not redesigned: `LandingPage` (/open, the public shop page), `TermsPage` and the printable bill in `BillingPage`: their content is the shop's printed material.
+- **Copy:** sentence case, plain words ("New sale", "Bank book", "Waiting for approval"); English strings in `i18n/translations.ts` updated, Tamil untouched.
+- **Fixed on the way:**
+  - Login stored the password in plain text in `localStorage` (`rks_savedPassword`). Now only the username is kept, and any saved password is deleted.
+  - "Editable today" checks compared the UTC date (`createdAt.startsWith(today)`), so sales made 00:00–05:30 IST showed as locked. They now use the IST date.
+  - The expenses list offered Delete to admins, but the server allows it only for super admins.
+  - The Desktop app download link pointed at an `.exe` that isn't hosted. Removed.
+- **Charts** read theme colors through `hooks/useTokens` (SVG attributes don't resolve `var()`).
+- **Found, not fixed:** the API's global limiter is 200 requests / 15 min per IP. Staff on the shop Wi-Fi share one public IP, so a busy day can return 429s. The app then signs people out when `/auth/me` fails. Raise the limit or key it by user.
+
 ## 1. Goal
 Run the same system at **https://rksone.qenbel.site** (originally planned as `rks.qenbel.site`; see §0) (new Render service + new Supabase DB), while the **old system `shop-rks.onrender.com` keeps running** for a while. Reason: installed Android APKs fetch `version.json`, the APK and the API from the old URL. Later the old server will push a "bridge" update that moves installed apps to the new URL.
 

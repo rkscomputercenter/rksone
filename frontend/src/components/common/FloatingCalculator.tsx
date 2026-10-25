@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Calculator, X } from 'lucide-react';
 
 export default function FloatingCalculator() {
   const [isOpen, setIsOpen] = useState(false);
@@ -76,32 +77,31 @@ export default function FloatingCalculator() {
   const backspace = () => setDisplay(prev => prev === 'Error' ? '' : prev.slice(0, -1));
 
   const isMobile = window.innerWidth <= 768;
-  const bottomPos = isMobile ? 100 : 24;
+  const bottomPos = isMobile ? 84 : 24;
 
   if (!isOpen) {
     return (
-      <button 
+      <button
         onClick={() => setIsOpen(true)}
+        aria-label="Open calculator"
+        title="Calculator"
         style={{
           position: 'fixed',
           bottom: bottomPos,
-          right: 24,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          background: 'var(--color-primary)',
-          color: '#fff',
-          border: 'none',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          cursor: 'pointer',
-          fontSize: 24,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          right: isMobile ? 16 : 24,
+          width: 48,
+          height: 48,
+          borderRadius: 'var(--radius-lg)',
+          background: 'var(--sheet)',
+          color: 'var(--ink)',
+          border: '1px solid var(--rule)',
+          boxShadow: 'var(--shadow-float)',
+          display: 'grid',
+          placeItems: 'center',
           zIndex: 999
         }}
       >
-        🧮
+        <Calculator size={21} />
       </button>
     );
   }
@@ -110,29 +110,31 @@ export default function FloatingCalculator() {
     <div style={{
       position: 'fixed',
       bottom: bottomPos,
-      right: 24,
+      right: isMobile ? 16 : 24,
       width: 280,
-      background: 'var(--bg-surface)',
-      borderRadius: 16,
-      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+      background: 'var(--sheet)',
+      borderRadius: 'var(--radius-xl)',
+      boxShadow: 'var(--shadow-float)',
       padding: 16,
       zIndex: 999,
       border: '1px solid var(--border-color)'
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h4 style={{ margin: 0, fontSize: 16, color: 'var(--text-primary)' }}>Calculator</h4>
-        <button onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 16 }}>✕</button>
+        <button onClick={() => setIsOpen(false)} className="icon-btn" aria-label="Close calculator"><X size={18} /></button>
       </div>
 
       <div style={{
-        background: 'var(--bg-base)',
-        padding: '12px 16px',
+        background: 'var(--sheet-2)',
+        border: '1px solid var(--rule)',
+        padding: '10px 14px',
         borderRadius: 8,
-        fontSize: 24,
+        fontSize: 26,
+        fontWeight: 650,
+        fontVariantNumeric: 'tabular-nums',
         textAlign: 'right',
         marginBottom: 16,
         color: 'var(--text-primary)',
-        fontFamily: 'monospace',
         minHeight: 56,
         overflowX: 'auto',
         wordBreak: 'break-all'

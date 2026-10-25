@@ -123,10 +123,10 @@ export default function ServerManagement() {
       {kickSessionId && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.5)', zIndex: 9999,
+          background: 'rgba(15, 22, 40, 0.5)', zIndex: 9999,
           display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)'
         }}>
-          <div style={{ background: 'var(--bg-surface)', padding: 32, borderRadius: 16, maxWidth: 400, width: '90%', boxShadow: '0 24px 48px rgba(0,0,0,0.2)' }}>
+          <div style={{ background: 'var(--bg-surface)', padding: 32, borderRadius: 16, maxWidth: 400, width: '90%', boxShadow: 'var(--shadow-float)', border: '1px solid var(--rule)' }}>
             <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 16 }}>Timeout Session</h3>
             <div className="form-group">
               <label className="form-label">Timeout Duration (minutes)</label>
@@ -147,7 +147,7 @@ export default function ServerManagement() {
         <div className="flex-between mb-24">
           <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Server Management</h2>
           <button className="btn btn-ghost" onClick={loadData} disabled={loading}>
-            {loading ? '...' : '🔄 Refresh Stats'}
+            {loading ? 'Refreshing' : 'Refresh'}
           </button>
         </div>
 
@@ -269,7 +269,7 @@ export default function ServerManagement() {
                       <td><span className={`badge role-${s.user.role}`}>{s.user.role}</span></td>
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-                          <button className="btn btn-ghost btn-xs" onClick={() => handleMessageUser(s.userId)}>💬</button>
+                          <button className="btn btn-ghost btn-xs" onClick={() => handleMessageUser(s.userId)}>Message</button>
                           <button className="btn btn-danger btn-xs" onClick={() => handleKick(s.id)} disabled={s.userId === user?.id}>Timeout</button>
                         </div>
                       </td>

@@ -71,7 +71,7 @@ function RoleModal({ role, onClose, onSave }: RoleModalProps) {
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
         <div className="modal-header">
           <span className="modal-title">{role ? 'Edit Custom Role' : 'Create Custom Role'}</span>
-          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+          <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
@@ -179,8 +179,8 @@ export default function RoleManagementPage() {
                   <td style={{ color: 'var(--text-muted)' }}>{new Date(r.createdAt).toLocaleDateString()}</td>
                   <td>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => { setEditRole(r); setShowModal(true); }}>✏ Edit</button>
-                      <button className="btn btn-ghost btn-sm text-red" onClick={() => handleDelete(r)}>🗑 Delete</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => { setEditRole(r); setShowModal(true); }}>Edit</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(r)}>Delete</button>
                     </div>
                   </td>
                 </tr>

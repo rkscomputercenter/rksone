@@ -24,19 +24,18 @@ export default function MaintenancePage() {
       textAlign: 'center',
       padding: 20
     }}>
-      <div style={{ fontSize: '100px', marginBottom: 20 }}>🛠️</div>
-      <h1 style={{ fontSize: '32px', fontWeight: 800, marginBottom: 12 }}>SERVER UNDER MAINTENANCE</h1>
-      <p style={{ fontSize: '18px', color: 'var(--text-secondary)', maxWidth: 600, lineHeight: 1.6, marginBottom: 32 }}>
-        We are currently performing scheduled maintenance to improve our systems. 
-        All data has been safely saved. We'll be back online shortly!
+      <div className="brand-mark" style={{ width: 56, height: 56, fontSize: 22, margin: '0 auto 20px' }} aria-hidden="true">R1</div>
+      <h1 className="page-header-title" style={{ marginBottom: 10 }}>RKS ONE is being updated</h1>
+      <p style={{ fontSize: 17, color: 'var(--text-secondary)', maxWidth: 520, lineHeight: 1.6, marginBottom: 28 }}>
+        Everything you entered is saved. Sales and expenses can be entered again as soon as the update finishes.
       </p>
       
-      <div className="card" style={{ maxWidth: 400, border: '2px solid var(--border-default)' }}>
+      <div className="card" style={{ maxWidth: 400 }}>
         <p style={{ fontSize: '14px', marginBottom: 20 }}>
-          Your session was paused safely. If you are an administrator, you can try logging in again if maintenance is complete.
+          Super admins can still sign in during the update.
         </p>
         <button className="btn btn-primary btn-lg btn-full" onClick={handleBackToLogin}>
-          Back to Login
+          Go to sign in
         </button>
       </div>
 

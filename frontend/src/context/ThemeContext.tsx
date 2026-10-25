@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-type Theme = 'light' | 'dark' | 'black-gold' | 'glass';
+// Two themes only: paper (light) and navy (dark). Older saved themes map to dark.
+type Theme = 'light' | 'dark';
 
 interface ThemeContextType {
   theme: Theme;
@@ -9,28 +10,28 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+function initialTheme(): Theme {
+  let saved: string | null = null;
+  try { saved = localStorage.getItem('rks_theme'); } catch { /* storage blocked */ }
+  if (saved === 'light') return 'light';
+  if (saved === 'dark' || saved === 'black-gold' || saved === 'glass') return 'dark';
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem('rks_theme') as Theme | null;
-    if (saved === 'light' || saved === 'dark' || saved === 'black-gold' || saved === 'glass') return saved;
-    return 'light'; // default theme
-  });
+  const [theme, setTheme] = useState<Theme>(initialTheme);
 
   useEffect(() => {
-    localStorage.setItem('rks_theme', theme);
+    try { localStorage.setItem('rks_theme', theme); } catch { /* storage blocked */ }
     document.documentElement.setAttribute('data-theme', theme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0F1A33' : '#FFFFFF');
   }, [theme]);
 
-  const toggleTheme = (role: string | null = null) => {
-    setTheme(prev => {
-      const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
-      const isSuperAdmin = role === 'SUPER_ADMIN';
-
-      if (prev === 'dark') return isAdmin ? 'glass' : 'light';
-      if (prev === 'glass') return isSuperAdmin ? 'black-gold' : 'light';
-      if (prev === 'black-gold') return 'light';
-      return 'dark'; // prev === 'light'
-    });
+  const toggleTheme = () => {
+    const next: Theme = theme === 'light' ? 'dark' : 'light';
+    // Set the attribute before re-rendering, so components reading computed colors see the new theme
+    document.documentElement.setAttribute('data-theme', next);
+    setTheme(next);
   };
 
   return (

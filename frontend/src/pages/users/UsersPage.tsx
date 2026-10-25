@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import Layout from '../../components/layout/Layout';
 import { usersApi, apiClient } from '../../api';
@@ -67,11 +68,11 @@ function UserModal({ user, onClose, onSave }: UserModalProps) {
               <div className="form-group">
                 <label className="form-label">Role</label>
                 <select className="form-select" value={role} onChange={e => setRole(e.target.value as Role)}>
-                  <option value="USER">Operator (USER)</option>
+                  <option value="USER">Staff</option>
                   <option value="MANAGER">Manager</option>
                   <option value="ADMIN">Admin</option>
-                  <option value="SUPER_ADMIN">Super Admin</option>
-                  <option value="CUSTOM">Custom Role</option>
+                  <option value="SUPER_ADMIN">Super admin</option>
+                  <option value="CUSTOM">Custom role</option>
                 </select>
               </div>
               {role === 'CUSTOM' && (
@@ -96,7 +97,7 @@ function UserModal({ user, onClose, onSave }: UserModalProps) {
                           else setShopAccess(prev => prev.filter(s => s !== 'SHOP_COMPUTER'));
                         }}
                       />
-                      <span>SHOP-COMPUTER</span>
+                      <span>Computer shop</span>
                     </label>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                       <input 
@@ -107,10 +108,10 @@ function UserModal({ user, onClose, onSave }: UserModalProps) {
                           else setShopAccess(prev => prev.filter(s => s !== 'SHOP_XEROX'));
                         }}
                       />
-                      <span>SHOP-XEROX</span>
+                      <span>Xerox shop</span>
                     </label>
                   </div>
-                  {shopAccess.length === 0 && <span style={{ fontSize: 12, color: 'var(--red)' }}>Must select at least one shop</span>}
+                  {shopAccess.length === 0 && <span className="form-error">Choose at least one shop.</span>}
                 </div>
               )}
               <div className="form-group" style={{ justifyContent: 'flex-end', gridColumn: '1 / -1' }}>
@@ -122,9 +123,9 @@ function UserModal({ user, onClose, onSave }: UserModalProps) {
             </div>
             {user && (
               <div className="form-group" style={{ marginTop: 16 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '12px', background: 'rgba(255,50,50,0.1)', borderRadius: 8, border: '1px solid rgba(255,50,50,0.2)' }}>
+                <label className="alert alert-error" style={{ cursor: 'pointer', alignItems: 'center' }}>
                   <input type="checkbox" checked={isSuspended} onChange={e => setIsSuspended(e.target.checked)} />
-                  <span style={{ fontSize: 14, color: 'var(--red)', fontWeight: 600 }}>Suspend Account</span>
+                  <span style={{ fontWeight: 600 }}>Suspend this account. They are signed out and can’t sign in until you clear this.</span>
                 </label>
               </div>
             )}
@@ -145,6 +146,8 @@ export default function UsersPage() {
   const [showModal, setShowModal] = useState(false);
   const [editUser, setEditUser] = useState<User | undefined>();
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [confirmId, setConfirmId] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -153,63 +156,71 @@ export default function UsersPage() {
   useEffect(() => { load(); }, []);
 
   const roleChip = (r: Role) => {
-    const cls = r === 'SUPER_ADMIN' ? 'badge-gold' : r === 'ADMIN' ? 'badge-purple' : 'badge-blue';
-    return <span className={`badge ${cls}`}>{r.replace(/_/g, ' ')}</span>;
+    const label: Record<string, string> = { USER: 'Staff', MANAGER: 'Manager', ADMIN: 'Admin', SUPER_ADMIN: 'Super admin', CUSTOM: 'Custom role' };
+    const cls = r === 'SUPER_ADMIN' || r === 'ADMIN' ? 'badge-gold' : '';
+    return <span className={`badge ${cls}`}>{label[r] ?? r}</span>;
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this user? If they have transactions, they will be deactivated instead to preserve records.')) return;
     try {
+      setError(''); setNotice('');
       const res = await usersApi.delete(id);
-      alert(res.data.message || 'User removed');
+      setNotice(res.data.message || 'User removed.');
+      setConfirmId(null);
       load();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Delete failed');
+      setError(err.response?.data?.error || 'The user was not removed. Try again.');
     }
   };
 
   return (
-    <Layout title="User Management">
+    <Layout title="Users">
       {showModal && (
         <UserModal user={editUser} onClose={() => setShowModal(false)} onSave={() => { setShowModal(false); load(); }} />
       )}
       <div className="page-header">
         <div>
-          <div className="page-header-title">User Management</div>
-          <div className="page-header-sub">{users.length} users — {users.filter(u => u.isActive).length} active</div>
+          <div className="page-header-title">Users</div>
+          <div className="page-header-sub">{users.length} people can sign in; {users.filter(u => u.isActive).length} are active.</div>
         </div>
-        <button className="btn btn-primary" onClick={() => { setEditUser(undefined); setShowModal(true); }}>+ Add User</button>
+        <button className="btn btn-primary" onClick={() => { setEditUser(undefined); setShowModal(true); }}><Plus size={17} /> Add a user</button>
       </div>
 
-      {error && <div className="alert alert-error mb-16">{error}</div>}
+      {error && <div className="alert alert-error mb-16" role="alert">{error}</div>}
+      {notice && <div className="alert alert-success mb-16" aria-live="polite">{notice}</div>}
 
       {loading ? <div className="page-loading"><div className="spinner spinner-lg" /></div> : (
         <div className="table-wrapper">
           <table>
-            <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th>Transactions</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Name</th><th>Role</th><th>Shops</th><th>Status</th><th className="amount">Sales entered</th><th className="amount"><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
               {users.map(u => (
                 <tr key={u.id}>
-                  <td style={{ fontWeight: 600 }}>{u.name}</td>
-                  <td style={{ color: 'var(--text-muted)', fontFamily: 'monospace' }}>{u.username}</td>
-                  <td>{roleChip(u.role)}</td>
                   <td>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {u.isActive ? <span className="badge badge-green">Active</span> : <span className="badge badge-red">Inactive</span>}
-                      {u.isSuspended && <span className="badge badge-red" style={{ background: '#ff3333', color: 'white' }}>Suspended</span>}
-                      {u.shopAccess?.length > 1 ? (
-                        <span className="badge" style={{ background: '#e0e7ff', color: '#3730a3', fontSize: 10 }}>BOTH SHOPS</span>
-                      ) : (
-                        <span className="badge" style={{ background: '#f3f4f6', color: '#4b5563', fontSize: 10 }}>{u.shopAccess?.[0]?.replace('SHOP_', '')}</span>
-                      )}
-                    </div>
+                    <div style={{ fontWeight: 600 }}>{u.name}</div>
+                    <div className="text-xs text-muted">{u.username}</div>
                   </td>
-                  <td style={{ color: 'var(--text-muted)' }}>{u._count?.transactions ?? 0}</td>
+                  <td>{roleChip(u.role)}</td>
+                  <td className="text-muted">{u.role === 'ADMIN' || u.role === 'SUPER_ADMIN' || (u.shopAccess?.length ?? 0) > 1 ? 'Both' : u.shopAccess?.[0] === 'SHOP_XEROX' ? 'Xerox' : 'Computer'}</td>
                   <td>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => { setEditUser(u); setShowModal(true); }}>✏ Edit</button>
-                      <button className="btn btn-ghost btn-sm text-red" onClick={() => handleDelete(u.id)}>🗑 Delete</button>
-                    </div>
+                    <span className="flex gap-8" style={{ flexWrap: 'wrap' }}>
+                      {u.isActive ? <span className="badge badge-green">Active</span> : <span className="badge">Inactive</span>}
+                      {u.isSuspended && <span className="badge badge-red">Suspended</span>}
+                    </span>
+                  </td>
+                  <td className="amount">{u._count?.transactions ?? 0}</td>
+                  <td className="amount">
+                    {confirmId === u.id ? (
+                      <span className="flex gap-8" style={{ justifyContent: 'flex-end' }}>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(u.id)}>Remove</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setConfirmId(null)}>Keep</button>
+                      </span>
+                    ) : (
+                      <span className="flex gap-8" style={{ justifyContent: 'flex-end' }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => { setEditUser(u); setShowModal(true); }}>Edit</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setConfirmId(u.id)} title="People with sales are made inactive instead, so their records stay">Remove</button>
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

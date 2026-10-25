@@ -1,42 +1,48 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Search, Minus, Plus } from 'lucide-react';
 import Layout from '../../components/layout/Layout';
-import { servicesApi, transactionsApi } from '../../api';
+import { analyticsApi, servicesApi, transactionsApi } from '../../api';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import type { Service, ServiceCategory } from '../../types';
 import FloatingCalculator from '../../components/common/FloatingCalculator';
 
 const CATS: ServiceCategory[] = ['GOVT', 'PRINTING', 'CARDS', 'OTHER'];
-const CAT_LABELS: Record<ServiceCategory, string> = { GOVT: '🏛 Govt', PRINTING: '🖨 Printing', CARDS: '🪪 Cards', OTHER: '🔧 Other' };
+const CAT_LABELS: Record<ServiceCategory, string> = { GOVT: 'Government', PRINTING: 'Printing', CARDS: 'Cards', OTHER: 'Other' };
+const SHOP_LABEL: Record<string, string> = { SHOP_COMPUTER: 'Computer shop', SHOP_XEROX: 'Xerox shop' };
+
+type Pay = 'CASH' | 'ONLINE';
+type QuickPay = 'CASH' | 'ONLINE' | 'OTHER';
+
+const rupees = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function NewTransaction() {
   const { t } = useLanguage();
-  const { hasPermission, user, activeShop } = useAuth();
-  const canManage = hasPermission('allRecords', 'write');
-  const navigate = useNavigate();
+  const { activeShop } = useAuth();
   const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Service | null>(null);
-  const [isSearchOpen, setIsSearchOpen] = useState(true);
   const [quantity, setQuantity] = useState<number | ''>(1);
   const [unitPrice, setUnitPrice] = useState<number | ''>('');
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'ONLINE' | ''>('');
+  const [paymentMethod, setPaymentMethod] = useState<Pay | ''>('');
   const [notes, setNotes] = useState('');
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  
-  // Quick Entry: Others
+  const [saved, setSaved] = useState<{ no: number; text: string } | null>(null);
+  // Entry number on the slip: today's count + 1 (own sales for staff, the shop's for admins)
+  const [entryNo, setEntryNo] = useState<number | null>(null);
+
+  // Quick entry without a listed service ("Others")
   const [othersAmount, setOthersAmount] = useState<number | ''>('');
   const [othersName, setOthersName] = useState('');
-  const [othersPayment, setOthersPayment] = useState<'CASH' | 'ONLINE' | 'OTHER' | ''>('');
+  const [othersPayment, setOthersPayment] = useState<QuickPay | ''>('');
   const [othersSubmitting, setOthersSubmitting] = useState(false);
-
 
   const searchRef = useRef<HTMLInputElement>(null);
   const qtyRef = useRef<HTMLInputElement>(null);
+  const shop = activeShop || 'SHOP_COMPUTER';
 
   useEffect(() => {
     servicesApi.list({ active: true })
@@ -45,62 +51,74 @@ export default function NewTransaction() {
     searchRef.current?.focus();
   }, []);
 
-  const filtered = services.filter(s => {
-    const q = search.toLowerCase();
-    return s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q);
-  });
+  useEffect(() => {
+    analyticsApi.todaySummary()
+      .then(r => setEntryNo((r.data.data?.transactionCount ?? 0) + 1))
+      .catch(() => setEntryNo(null));
+  }, [activeShop]);
 
-  const grouped = CATS.reduce((acc, cat) => {
-    const items = filtered.filter(s => s.category === cat);
-    if (items.length) acc[cat] = items;
-    return acc;
-  }, {} as Record<string, Service[]>);
+  const grouped = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const filtered = services.filter(s => !q || s.name.toLowerCase().includes(q) || CAT_LABELS[s.category].toLowerCase().includes(q));
+    return CATS.map(cat => [cat, filtered.filter(s => s.category === cat)] as const).filter(([, items]) => items.length > 0);
+  }, [services, search]);
+
+  const total = selected && unitPrice !== '' ? Number(unitPrice) * (Number(quantity) || 0) : 0;
+
+  const flashSaved = (text: string) => {
+    setSaved({ no: entryNo ?? 0, text });
+    setEntryNo(n => (n === null ? n : n + 1));
+    setTimeout(() => setSaved(null), 2600);
+  };
 
   const handleSelect = (s: Service) => {
     setSelected(s);
     setQuantity(1);
     setUnitPrice(Number(s.price));
-    setPaymentMethod(''); // Reset choice
-    setIsSearchOpen(false);
-    setTimeout(() => qtyRef.current?.focus(), 50);
+    setPaymentMethod('');
+    setError('');
+    setTimeout(() => qtyRef.current?.select(), 50);
   };
 
-  const handleSubmit = async (e?: React.FormEvent, targetShop?: string) => {
-    if (e) e.preventDefault();
+  const resetSale = () => {
+    setSelected(null);
+    setQuantity(1);
+    setUnitPrice('');
+    setNotes('');
+    setSearch('');
+    setPaymentMethod('');
+    setTimeout(() => searchRef.current?.focus(), 50);
+  };
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!selected) { setError(t('newTx.errorSelect' as any)); return; }
     if (quantity === '' || quantity < 1) { setError(t('newTx.errorQuantity' as any)); return; }
     if (unitPrice === '' || unitPrice < 0) { setError(t('newTx.errorPrice' as any)); return; }
-    if (!paymentMethod) { setError('Please choose a payment method (Cash or Online)'); return; }
-    
+    if (!paymentMethod) { setError('Choose how the customer paid: cash or online.'); return; }
+
     setError('');
     setSubmitting(true);
     try {
-      await transactionsApi.create({ 
-        serviceId: selected.id, 
-        quantity: Number(quantity), 
+      await transactionsApi.create({
+        serviceId: selected.id,
+        quantity: Number(quantity),
         unitPrice: Number(unitPrice),
         paymentMethod,
-        shop: targetShop || activeShop || 'SHOP_COMPUTER',
-        notes: notes || undefined 
+        shop,
+        notes: notes || undefined,
       });
-      setSuccess(`✓ ${selected.name} × ${quantity} recorded — ₹${(Number(unitPrice) * Number(quantity)).toFixed(2)}`);
-      setSelected(null);
-      setQuantity(1);
-      setUnitPrice('');
-      setNotes('');
-      setSearch('');
-      setIsSearchOpen(true);
-      searchRef.current?.focus();
-      setTimeout(() => setSuccess(''), 4000);
+      flashSaved(`${selected.name} × ${quantity}, ₹${rupees(total)} ${paymentMethod === 'CASH' ? 'cash' : 'online'}`);
+      resetSale();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to save transaction');
+      setError(err.response?.data?.error || 'The sale was not saved. Check the connection and try again.');
     } finally { setSubmitting(false); }
   };
 
-  const handleOthersSubmit = async (e?: React.FormEvent, targetShop?: string) => {
-    if (e) e.preventDefault();
-    if (!othersAmount || othersAmount <= 0) { setError('Please enter a valid amount'); return; }
-    if (!othersPayment) { setError('Please select a payment method'); return; }
+  const handleOthersSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!othersAmount || othersAmount <= 0) { setError('Enter an amount for the quick entry.'); return; }
+    if (!othersPayment) { setError('Choose how the customer paid for the quick entry.'); return; }
 
     setOthersSubmitting(true);
     setError('');
@@ -110,175 +128,192 @@ export default function NewTransaction() {
         quantity: 1,
         unitPrice: Number(othersAmount),
         paymentMethod: othersPayment,
-        shop: targetShop || activeShop || 'SHOP_COMPUTER',
+        shop,
         notes: othersName || undefined,
       });
-      setSuccess(`✓ Others entry recorded — ₹${othersAmount}`);
+      flashSaved(`${othersName || 'Others'}, ₹${rupees(Number(othersAmount))}`);
       setOthersAmount('');
       setOthersName('');
       setOthersPayment('');
-      setTimeout(() => setSuccess(''), 4000);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to save Others entry');
+      setError(err.response?.data?.error || 'The quick entry was not saved. Try again.');
     } finally { setOthersSubmitting(false); }
   };
 
+  const onEnterSave = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); }
+  };
 
-
-  const total = selected && unitPrice !== '' ? Number(unitPrice) * (Number(quantity) || 0) : 0;
+  const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short' });
 
   return (
     <Layout title={t('newTx.title' as any)}>
-      <div style={{ maxWidth: 720, margin: '0 auto' }}>
-        <div className="page-header">
-          <div>
-            <div className="page-header-title">{t('newTx.title' as any)}</div>
-            <div className="page-header-sub">{t('newTx.subtitle' as any)}</div>
-          </div>
-          <button className="btn btn-ghost" onClick={() => navigate('/transactions')}>{t('newTx.viewList' as any)}</button>
-        </div>
+      <div className="sale-page">
+        <form className="slip" onSubmit={handleSubmit} aria-labelledby="sale-title">
+          {saved && <div className="stamp" aria-hidden="true">Saved</div>}
 
-        {error && <div className="alert alert-error mb-16">{error}</div>}
-        {success && <div className="alert alert-success mb-16">{success}</div>}
-
-        <form onSubmit={handleSubmit}>
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isSearchOpen ? 14 : 0, cursor: 'pointer' }} onClick={() => setIsSearchOpen(!isSearchOpen)}>
-              <label className="form-label" style={{ margin: 0, cursor: 'pointer' }}>{t('newTx.searchLabel' as any)}</label>
-              <button type="button" className="btn-icon text-muted">{isSearchOpen ? '▲' : '▼'}</button>
+          <div className="slip-head">
+            <div>
+              <h2 id="sale-title" className="slip-title">{t('newTx.title' as any)}</h2>
+              <div className="slip-meta">{today}, {SHOP_LABEL[shop] ?? shop}</div>
             </div>
-            
-            {isSearchOpen && (
-              <>
-                <div className="form-group" style={{ marginBottom: 14 }}>
-                  <div className="search-box">
-                    <span className="search-icon">🔍</span>
-                    <input ref={searchRef} className="form-input search-input" placeholder={t('newTx.searchPlaceholder' as any)} value={search} onChange={e => setSearch(e.target.value)} />
-                  </div>
-                </div>
-
-                {loading ? <div className="page-loading" style={{ height: 120 }}><div className="spinner" /></div> : (
-                  <div className="service-list">
-                    {Object.entries(grouped).length === 0 && (
-                      <div className="empty-state" style={{ padding: 24 }}>
-                        <div>{t('newTx.noServices' as any)} "{search}"</div>
-                      </div>
-                    )}
-                    {Object.entries(grouped).map(([cat, items]) => (
-                      <div key={cat}>
-                        <div style={{ padding: '6px 12px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                          {CAT_LABELS[cat as ServiceCategory]}
-                        </div>
-                        {items.map(s => (
-                          <div key={s.id} className={`service-item${selected?.id === s.id ? ' selected' : ''}`} onClick={() => handleSelect(s)}>
-                            <div>
-                              <div className="service-item-name">{s.name}</div>
-                            </div>
-                            <div className="service-item-price">₹{Number(s.price).toFixed(2)}</div>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
+            {entryNo !== null && (
+              <div className="slip-no" aria-label={`Entry number ${entryNo} today`}>
+                <small>No.</small>
+                <span>{String(entryNo).padStart(3, '0')}</span>
+              </div>
             )}
           </div>
 
-          {selected && (
-            <div className="card" style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <div>
-                  <div style={{ fontWeight: 700 }}>{selected.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('newTx.defaultPrice' as any)}{Number(selected.price).toFixed(2)}</div>
-                </div>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setSelected(null); setIsSearchOpen(true); }}>{t('newTx.clear' as any)}</button>
-              </div>
-              
-              <div className="form-grid-3">
-                <div className="form-group">
-                  <label className="form-label">{t('newTx.unitPrice' as any)}</label>
-                  <input className="form-input" type="number" min={0} step="0.01" value={unitPrice}
-                    onChange={e => setUnitPrice(e.target.value === '' ? '' : Math.max(0, parseFloat(e.target.value)))}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(e as any); } }} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">{t('newTx.quantity' as any)}</label>
-                  <input ref={qtyRef} className="form-input" type="number" min={1} value={quantity}
-                    onChange={e => setQuantity(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value)))}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(e as any); } }} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">{t('newTx.notes' as any)}</label>
-                  <input className="form-input" type="text" placeholder="..." value={notes} onChange={e => setNotes(e.target.value)} />
-                </div>
-              </div>
-              <div style={{ marginTop: 16, padding: '12px 16px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('newTx.totalAmount' as any)}</span>
-                <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-accent)' }}>₹{total.toFixed(2)}</span>
-              </div>
-            </div>
-          )}
-
-          {selected && (
-            <div className="card" style={{ marginBottom: 24 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label className="form-label" style={{ margin: 0, fontSize: 16 }}>Payment Method</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button 
-                    type="button"
-                    className={`btn ${paymentMethod === 'CASH' ? 'btn-primary' : 'btn-ghost'}`} 
-                    onClick={() => setPaymentMethod('CASH')}
-                  >
-                    💵 Cash
-                  </button>
-                  <button 
-                    type="button"
-                    className={`btn ${paymentMethod === 'ONLINE' ? 'btn-primary' : 'btn-ghost'}`} 
-                    onClick={() => setPaymentMethod('ONLINE')}
-                  >
-                    💳 Online
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <button type="button" onClick={(e) => handleSubmit(e, activeShop as string)} className="btn btn-primary btn-lg btn-full" disabled={!selected || !paymentMethod || submitting}>
-            {submitting ? <><span className="spinner" style={{ width: 16, height: 16 }} /> {t('newTx.saving' as any)}</> : `${t('newTx.saveBtn' as any)}${selected ? ` — ₹${total.toFixed(2)}` : ''}`}
-          </button>
-        </form>
-
-        <hr style={{ margin: '32px 0', borderColor: 'var(--border-color)' }} />
-        <h3 style={{ marginBottom: 16 }}>Quick Entries</h3>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
-          {/* OTHERS CARD */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-            <h4 style={{ marginBottom: 16 }}>Others</h4>
-            <form onSubmit={handleOthersSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-              <div className="form-group">
-                <input className="form-input" placeholder="Amount (₹)" type="number" min={0} step="0.01" value={othersAmount} onChange={e => setOthersAmount(e.target.value === '' ? '' : Math.max(0, parseFloat(e.target.value)))} required />
-              </div>
-              <div className="form-group">
-                <input className="form-input" placeholder="Custom Name (optional)" value={othersName} onChange={e => setOthersName(e.target.value)} />
-              </div>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
-                <button type="button" className={`btn btn-sm ${othersPayment === 'CASH' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setOthersPayment('CASH')}>Cash</button>
-                <button type="button" className={`btn btn-sm ${othersPayment === 'ONLINE' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setOthersPayment('ONLINE')}>Online</button>
-                <button type="button" className={`btn btn-sm ${othersPayment === 'OTHER' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setOthersPayment('OTHER')}>Other</button>
-              </div>
-              <button type="button" onClick={(e) => handleOthersSubmit(e, activeShop as string)} className="btn btn-primary btn-full" disabled={!othersAmount || !othersPayment || othersSubmitting} style={{ marginTop: 'auto' }}>
-                {othersSubmitting ? 'Saving...' : 'Save Others'}
-              </button>
-            </form>
+          <div aria-live="polite">
+            {saved && <div className="alert alert-success mb-16">Saved entry {String(saved.no).padStart(3, '0')}: {saved.text}</div>}
+            {error && <div className="alert alert-error mb-16" role="alert">{error}</div>}
           </div>
 
+          {!selected ? (
+            <div className="form-group">
+              <label className="form-label" htmlFor="service-search">{t('newTx.searchLabel' as any)}</label>
+              <div className="search-box">
+                <span className="search-icon"><Search size={17} /></span>
+                <input id="service-search" ref={searchRef} className="form-input search-input" style={{ minHeight: 48 }}
+                  placeholder={t('newTx.searchPlaceholder' as any)} value={search} autoComplete="off"
+                  onChange={e => setSearch(e.target.value)}
+                  onKeyDown={e => {
+                    const first = grouped[0]?.[1][0];
+                    if (e.key === 'Enter' && first) { e.preventDefault(); handleSelect(first); }
+                  }} />
+              </div>
+              {loading ? (
+                <div className="page-loading" style={{ height: 140 }}><div className="spinner" /></div>
+              ) : (
+                <div className="service-list" role="listbox" aria-label="Services">
+                  {grouped.length === 0 && (
+                    <div className="empty-state" style={{ padding: 24 }}>
+                      {t('newTx.noServices' as any)} “{search}”. Use the quick entry below for anything not on the list.
+                    </div>
+                  )}
+                  {grouped.map(([cat, items]) => (
+                    <div key={cat} role="group" aria-label={CAT_LABELS[cat]}>
+                      <div className="service-group-title">{CAT_LABELS[cat]}</div>
+                      {items.map(s => (
+                        <button type="button" role="option" aria-selected={false} key={s.id} className="service-item" onClick={() => handleSelect(s)}>
+                          <span className="service-item-name">{s.name}</span>
+                          <span className="service-item-price">₹{rupees(Number(s.price))}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="slip-line">
+                <div>
+                  <div style={{ fontSize: 'var(--fs-lg)', fontWeight: 650, color: 'var(--graphite)' }}>{selected.name}</div>
+                  <div className="text-xs">{CAT_LABELS[selected.category]}, list price ₹{rupees(Number(selected.price))}</div>
+                </div>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={resetSale}>{t('newTx.clear' as any)}</button>
+              </div>
 
-        </div>
+              <div className="sale-fields">
+                <div className="form-group">
+                  <label className="form-label" htmlFor="qty">{t('newTx.quantity' as any)}</label>
+                  <div className="stepper">
+                    <button type="button" aria-label="One less" onClick={() => setQuantity(q => Math.max(1, (Number(q) || 1) - 1))}><Minus size={18} /></button>
+                    <input id="qty" ref={qtyRef} className="form-input" type="number" inputMode="numeric" min={1} value={quantity}
+                      onChange={e => setQuantity(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
+                      onKeyDown={onEnterSave} />
+                    <button type="button" aria-label="One more" onClick={() => setQuantity(q => (Number(q) || 0) + 1)}><Plus size={18} /></button>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="price">{t('newTx.unitPrice' as any)}</label>
+                  <input id="price" className="form-input" type="number" inputMode="decimal" min={0} step="0.01" value={unitPrice}
+                    style={{ minHeight: 48 }}
+                    onChange={e => setUnitPrice(e.target.value === '' ? '' : Math.max(0, parseFloat(e.target.value)))}
+                    onKeyDown={onEnterSave} />
+                </div>
+              </div>
 
+              <div className="form-group">
+                <label className="form-label" htmlFor="note">{t('newTx.notes' as any)}</label>
+                <input id="note" className="form-input" type="text" value={notes} onChange={e => setNotes(e.target.value)}
+                  placeholder="Customer name, page count…" onKeyDown={onEnterSave} />
+              </div>
+
+              <div className="form-group">
+                <span className="form-label" id="pay-label">Paid by</span>
+                <div className="seg seg-lg" role="group" aria-labelledby="pay-label">
+                  <button type="button" aria-pressed={paymentMethod === 'CASH'} onClick={() => setPaymentMethod('CASH')}>Cash</button>
+                  <button type="button" aria-pressed={paymentMethod === 'ONLINE'} onClick={() => setPaymentMethod('ONLINE')}>Online / UPI</button>
+                </div>
+              </div>
+
+              <div className="slip-total">
+                <span className="slip-total-label">{t('newTx.totalAmount' as any)}</span>
+                <span className="slip-total-value"><span className="cur">₹</span>{rupees(total)}</span>
+              </div>
+
+              <button type="submit" className="btn btn-primary btn-lg btn-full" style={{ marginTop: 14 }}
+                disabled={!paymentMethod || submitting}>
+                {submitting ? <><span className="spinner" /> {t('newTx.saving' as any)}</> : `${t('newTx.saveBtn' as any)}, ₹${rupees(total)}`}
+              </button>
+            </>
+          )}
+        </form>
+
+        <aside className="card quick-entry" aria-labelledby="quick-title">
+          <h3 id="quick-title">Something not on the list</h3>
+          <p className="text-sm text-muted" style={{ margin: '2px 0 14px' }}>Saved as “Others” with your note.</p>
+          <form onSubmit={handleOthersSubmit}>
+            <div className="form-grid">
+              <div className="form-group">
+                <label className="form-label" htmlFor="others-amount">Amount (₹)</label>
+                <input id="others-amount" className="form-input" type="number" inputMode="decimal" min={0} step="0.01"
+                  value={othersAmount} onChange={e => setOthersAmount(e.target.value === '' ? '' : Math.max(0, parseFloat(e.target.value)))} />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="others-name">What was it?</label>
+                <input id="others-name" className="form-input" value={othersName} onChange={e => setOthersName(e.target.value)} placeholder="Optional" />
+              </div>
+            </div>
+            <div className="form-group" style={{ marginTop: 14 }}>
+              <span className="form-label" id="quick-pay-label">Paid by</span>
+              <div className="seg" role="group" aria-labelledby="quick-pay-label" style={{ width: '100%' }}>
+                {(['CASH', 'ONLINE', 'OTHER'] as QuickPay[]).map(p => (
+                  <button key={p} type="button" style={{ flex: 1 }} aria-pressed={othersPayment === p} onClick={() => setOthersPayment(p)}>
+                    {p === 'CASH' ? 'Cash' : p === 'ONLINE' ? 'Online' : 'Other'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button type="submit" className="btn btn-ghost btn-full" style={{ marginTop: 6 }}
+              disabled={!othersAmount || !othersPayment || othersSubmitting}>
+              {othersSubmitting ? <><span className="spinner" /> Saving</> : 'Save quick entry'}
+            </button>
+          </form>
+          <hr style={{ margin: '18px 0 12px' }} />
+          <Link to="/transactions" className="btn-link text-sm">{t('newTx.viewList' as any)}</Link>
+        </aside>
       </div>
       <FloatingCalculator />
+
+      <style>{`
+        .sale-page { display: grid; grid-template-columns: minmax(0, 620px) minmax(260px, 340px); gap: 28px; align-items: start; justify-content: center; }
+        .sale-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+        .stepper { display: grid; grid-template-columns: 48px 1fr 48px; border: 1px solid var(--rule); border-radius: var(--radius-md); overflow: hidden; background: var(--sheet); }
+        .stepper:focus-within { border-color: var(--ink); box-shadow: var(--focus-ring); }
+        .stepper button { display: grid; place-items: center; color: var(--ink); background: var(--sheet-2); min-height: 46px; }
+        .stepper button:hover { background: var(--ink-wash); }
+        .stepper .form-input { border: none; border-radius: 0; text-align: center; font-size: var(--fs-lg); font-weight: 650; box-shadow: none; min-height: 46px; }
+        .quick-entry { position: sticky; top: 0; }
+        @media (max-width: 960px) {
+          .sale-page { grid-template-columns: minmax(0, 1fr); max-width: 620px; margin: 0 auto; }
+          .quick-entry { position: static; }
+        }
+        @media (max-width: 480px) { .sale-fields { grid-template-columns: 1fr; } }
+      `}</style>
     </Layout>
   );
 }

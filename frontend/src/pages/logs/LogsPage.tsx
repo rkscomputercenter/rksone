@@ -53,7 +53,7 @@ export default function LogsPage() {
           <div className="page-header-sub">{total} total records</div>
         </div>
         <button className="btn btn-danger" onClick={handleCleanup} disabled={cleaning}>
-          {cleaning ? 'Cleaning...' : '🗑 Run Cleanup'}
+          {cleaning ? 'Cleaning up' : 'Delete old logs'}
         </button>
       </div>
 
@@ -91,7 +91,7 @@ export default function LogsPage() {
       </div>
 
       {loading ? <div className="page-loading"><div className="spinner spinner-lg" /></div> : logs.length === 0 ? (
-        <div className="empty-state"><div className="empty-state-icon">📜</div><div className="empty-state-title">No logs found</div></div>
+        <div className="empty-state"><div className="empty-state-title">No logs found</div></div>
       ) : (
         <>
           <div className="table-wrapper">

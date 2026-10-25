@@ -13,8 +13,8 @@ export default function DeveloperPage() {
           <button onClick={() => navigate(-1)} className="btn btn-ghost">
             ← Go Back
           </button>
-          <Link to="/" className="btn btn-outline" style={{ background: '#fff' }}>
-            🏠 Home
+          <Link to="/" className="btn btn-outline">
+            Home
           </Link>
         </div>
 
@@ -71,7 +71,7 @@ export default function DeveloperPage() {
           
           <div className="card">
             <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--border-color)', paddingBottom: 16, marginBottom: 16 }}>
-              <span style={{ fontSize: 24 }}>🛠</span> Core Technology Stack
+              What it is built with
             </h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -99,7 +99,7 @@ export default function DeveloperPage() {
 
           <div className="card">
             <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--border-color)', paddingBottom: 16, marginBottom: 16 }}>
-              <span style={{ fontSize: 24 }}>🏗</span> System Architecture
+              How it fits together
             </h3>
             
             <ul style={{ paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 12, fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>

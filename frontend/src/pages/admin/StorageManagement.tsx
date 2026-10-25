@@ -157,17 +157,17 @@ export default function StorageManagement() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  background: autoEnabled ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                  background: autoEnabled ? 'var(--cash-wash)' : 'var(--stamp-wash)',
                   border: `1px solid ${autoEnabled ? 'var(--color-success)' : 'var(--color-danger)'}`
                 }}>
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Current Status</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>Automatic cleanup</div>
                     <div style={{ 
                       fontSize: 20, 
                       fontWeight: 700, 
                       color: autoEnabled ? 'var(--color-success)' : 'var(--color-danger)' 
                     }}>
-                      {autoEnabled ? '🟢 ACTIVE' : '🔴 SUSPENDED'}
+                      {autoEnabled ? 'On' : 'Off'}
                     </div>
                   </div>
                   <button 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
+import { Download } from 'lucide-react';
 import { APP_ORIGIN, API_BASE_URL, APP_NAME } from '../config';
 
 const CURRENT_VERSION = '1.0.41';
@@ -96,123 +97,38 @@ export default function AppUpdater() {
   if (!updateAvailable) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.85)',
-      backdropFilter: 'blur(10px)',
-      zIndex: 99999,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '24px'
-    }}>
-      <div style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-color)',
-        borderRadius: '24px',
-        padding: '32px',
-        maxWidth: '400px',
-        width: '100%',
-        color: 'var(--text-primary)',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-      }}>
-        <div style={{ 
-          width: '60px', height: '60px', borderRadius: '16px', 
-          background: 'rgba(99, 102, 241, 0.2)', display: 'flex', 
-          alignItems: 'center', justifyContent: 'center', marginBottom: '24px',
-          border: '1px solid rgba(99, 102, 241, 0.5)'
-        }}>
-          <span style={{ fontSize: '32px' }}>🚀</span>
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="update-title" style={{ zIndex: 99999 }}>
+      <div className="modal" style={{ maxWidth: 420 }}>
+        <div className="modal-header" style={{ justifyContent: 'flex-start' }}>
+          <span className="quick-action-icon" aria-hidden="true"><Download size={18} /></span>
+          <h2 id="update-title" className="modal-title">Update {APP_NAME}</h2>
         </div>
-        <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '12px' }}>Update Required</h2>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.6 }}>
-          A new version of {APP_NAME} is available. Please authenticate to download the update.
-        </p>
-        
-        {releaseNotes && (
-          <div style={{ background: 'var(--bg-base)', padding: '16px', borderRadius: '12px', marginBottom: '24px', borderLeft: '3px solid var(--color-primary)' }}>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>{releaseNotes}</p>
-          </div>
-        )}
-        
-        {!downloadStarted ? (
-          <form onSubmit={handleUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {error && (
-              <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '12px', borderRadius: '12px', fontSize: '14px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                {error}
+        <div className="modal-body">
+          <p className="text-muted">A new version of the app is ready. Sign in to download it; your data stays as it is.</p>
+          {releaseNotes && <div className="alert alert-info">{releaseNotes}</div>}
+
+          {!downloadStarted ? (
+            <form onSubmit={handleUpdate} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {error && <div className="alert alert-error" role="alert">{error}</div>}
+              <div className="form-group">
+                <label className="form-label" htmlFor="upd-user">Username</label>
+                <input id="upd-user" className="form-input" type="text" autoCapitalize="none" autoComplete="username"
+                  value={username} onChange={e => setUsername(e.target.value)} style={{ minHeight: 48 }} />
               </div>
-            )}
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Username</label>
-              <input
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="Enter username"
-                style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', background: 'var(--bg-base)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '15px', outline: 'none' }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', background: 'var(--bg-base)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '15px', outline: 'none' }}
-              />
-            </div>
-
-            <button 
-              type="submit" 
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '16px',
-                backgroundColor: 'var(--color-primary)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '16px',
-                fontWeight: 700,
-                marginTop: '8px',
-                cursor: 'pointer',
-                boxShadow: '0 10px 15px -3px rgba(99, 102, 241, 0.4)',
-                transition: 'all 0.2s',
-                opacity: loading ? 0.7 : 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px'
-              }}
-            >
-              {loading ? <span className="spinner" style={{ width: 20, height: 20 }}></span> : <span>Verify & Download</span>}
-            </button>
-          </form>
-        ) : (
-          <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '24px', borderRadius: '16px', textAlign: 'center' }}>
-            <h4 style={{ color: '#10b981', fontSize: '18px', fontWeight: 700, margin: '0 0 8px 0' }}>Success!</h4>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>The update is downloading in your browser.</p>
-          </div>
-        )}
-
+              <div className="form-group">
+                <label className="form-label" htmlFor="upd-pass">Password</label>
+                <input id="upd-pass" className="form-input" type="password" autoComplete="current-password"
+                  value={password} onChange={e => setPassword(e.target.value)} style={{ minHeight: 48 }} />
+              </div>
+              <button type="submit" className="btn btn-primary btn-lg btn-full" disabled={loading}>
+                {loading ? <><span className="spinner" /> Checking</> : 'Download the update'}
+              </button>
+            </form>
+          ) : (
+            <div className="alert alert-success">The update is downloading. Open it from your notifications to install.</div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

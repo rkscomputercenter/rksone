@@ -59,7 +59,7 @@ export default function AuditLogsPage() {
           <div className="page-loading"><div className="spinner" /></div>
         ) : logs.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">📋</div>
+            
             <div className="empty-state-title">No logs found</div>
             <div className="empty-state-sub">No matching audit logs for the selected criteria.</div>
           </div>

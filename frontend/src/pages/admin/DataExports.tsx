@@ -50,7 +50,7 @@ export default function DataExports() {
           <div className="page-header-sub">Download your generated Excel reports before they expire</div>
         </div>
         <button className="btn btn-ghost" onClick={fetchExports} disabled={loading}>
-          {loading ? 'Refreshing...' : '🔄 Refresh List'}
+          {loading ? 'Refreshing' : 'Refresh'}
         </button>
       </div>
 

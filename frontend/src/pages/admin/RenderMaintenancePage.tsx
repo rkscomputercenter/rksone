@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Navigate } from 'react-router-dom';
+import Layout from '../../components/layout/Layout';
 
 export default function RenderMaintenancePage() {
   const { isSuperAdmin } = useAuth();
@@ -55,20 +56,21 @@ export default function RenderMaintenancePage() {
   const percentageUsed = Math.min(100, Math.round((stats.used / 750) * 100));
 
   return (
-    <div className="page-container" style={{ padding: '24px', maxWidth: '1000px', margin: '0 auto' }}>
+    <Layout title="Server hours">
+    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       <div className="page-header">
         <div>
-          <h1 className="page-header-title">Render Infrastructure Maintenance</h1>
-          <p className="page-header-sub">Super Admin Portal — Understand and monitor your cloud hosting limits</p>
+          <h1 className="page-header-title">Server hours</h1>
+          <p className="page-header-sub">The API runs on Render’s free tier: 750 hours a month.</p>
         </div>
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '32px' }}>
         
         {/* Usage Card */}
-        <div className="card" style={{ padding: '24px', background: 'var(--bg-elevated)', borderRadius: '16px' }}>
+        <div className="card" style={{ padding: '24px',  }}>
           <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>☁️</span> CURRENT MONTH USAGE
+            This month
           </h2>
           
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '16px' }}>
@@ -145,5 +147,6 @@ export default function RenderMaintenancePage() {
         </div>
       </div>
     </div>
+    </Layout>
   );
 }

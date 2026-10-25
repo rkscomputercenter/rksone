@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import {
+  LayoutDashboard, PlusCircle, Printer, ScrollText, ListOrdered, Wallet,
+  BarChart3, FolderOpen, ClipboardList, Landmark, SlidersHorizontal, TrendingUp,
+  Wrench, Tags, History, FileClock, Receipt, RefreshCw, Archive,
+  Bell, KeyRound, Users, ShieldCheck, Server, Database, Cloud, IndianRupee,
+  Code, LogOut, X, ChevronRight, type LucideIcon,
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { 
-  FcHome, FcPlus, FcFile, FcRules, FcList, FcMoneyTransfer, 
-  FcComboChart, FcOpenedFolder, FcSurvey, FcBriefcase, FcLibrary, 
-  FcServices, FcBookmark, FcKindle, FcNews, FcProcess, FcPackage, 
-  FcAdvertising, FcKey, FcConferenceCall, FcPrivacy, FcGlobe, FcDatabase, 
-  FcDataBackup, FcUpRight, FcLineChart, FcMindMap, FcImport, FcTimeline
-} from 'react-icons/fc';
+import { APP_NAME } from '../../config';
 
 interface NavItem {
-  icon: React.ReactNode;
+  icon: LucideIcon;
   labelKey: string;
   path: string;
   permKey?: string;
@@ -29,144 +30,134 @@ interface SidebarProps {
   onClose: () => void;
 }
 
+const ROLE_LABEL: Record<string, string> = {
+  USER: 'Staff', MANAGER: 'Manager', ADMIN: 'Admin', SUPER_ADMIN: 'Super admin', CUSTOM: 'Custom role',
+};
+
+const SECTIONS: NavSection[] = [
+  {
+    title: 'Counter',
+    items: [
+      { icon: LayoutDashboard, labelKey: 'nav.dashboard', path: '/dashboard' },
+      { icon: PlusCircle, labelKey: 'nav.newEntry', path: '/transactions/new' },
+      { icon: ListOrdered, labelKey: 'nav.myTransactions', path: '/transactions' },
+      { icon: Wallet, labelKey: 'nav.myExpenses', path: '/expenses' },
+      { icon: Printer, labelKey: 'nav.billing', path: '/billing' },
+      { icon: ScrollText, labelKey: 'nav.terms', path: '/terms' },
+    ],
+  },
+  {
+    title: 'Money',
+    items: [
+      { icon: BarChart3, labelKey: 'nav.analytics', path: '/analytics', permKey: 'analytics' },
+      { icon: FolderOpen, labelKey: 'nav.allTransactions', path: '/admin/transactions', permKey: 'allRecords' },
+      { icon: ClipboardList, labelKey: 'nav.allExpenses', path: '/admin/expenses', permKey: 'allRecords' },
+      { icon: Landmark, labelKey: 'nav.banks', path: '/banks', permKey: 'banks' },
+      { icon: SlidersHorizontal, labelKey: 'nav.bankConfig', path: '/admin/bank-config', permKey: 'banks' },
+      { icon: TrendingUp, labelKey: 'Staff performance', path: '/admin/user-performance', adminOnly: true },
+    ],
+  },
+  {
+    title: 'Price list',
+    items: [
+      { icon: Wrench, labelKey: 'nav.services', path: '/services', permKey: 'services' },
+      { icon: Tags, labelKey: 'nav.expenseCats', path: '/admin/expense-categories', permKey: 'expenseCategories' },
+    ],
+  },
+  {
+    title: 'Records',
+    items: [
+      { icon: History, labelKey: 'Transaction log', path: '/admin/audit-logs', permKey: 'allRecords' },
+      { icon: FileClock, labelKey: 'nav.auditLogs', path: '/logs', permKey: 'salaryLogs' },
+      { icon: Receipt, labelKey: 'nav.billLogs', path: '/admin/bill-logs', permKey: 'salaryLogs' },
+      { icon: RefreshCw, labelKey: 'Automatic entries', path: '/admin/auto-transactions', adminOnly: true },
+      { icon: Archive, labelKey: 'nav.dataExports', path: '/admin/exports', permKey: 'analytics' },
+    ],
+  },
+  {
+    title: 'System',
+    items: [
+      { icon: Bell, labelKey: 'System alerts', path: '/admin/alerts', superOnly: true },
+      { icon: KeyRound, labelKey: 'Password requests', path: '/admin/password-requests', superOnly: true },
+      { icon: Users, labelKey: 'nav.users', path: '/users', superOnly: true },
+      { icon: ShieldCheck, labelKey: 'Roles', path: '/admin/roles', superOnly: true },
+      { icon: Server, labelKey: 'nav.serverMgmt', path: '/admin/system', superOnly: true },
+      { icon: Database, labelKey: 'nav.storageMgmt', path: '/admin/storage', superOnly: true },
+      { icon: Cloud, labelKey: 'nav.renderMgmt', path: '/admin/render', superOnly: true },
+      { icon: IndianRupee, labelKey: 'nav.incomeMgmt', path: '/admin/income-management', superOnly: true },
+    ],
+  },
+];
+
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user, role, isAdmin, isSuperAdmin, logout } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
 
-  const SECTIONS: NavSection[] = [
-    {
-      title: 'Main',
-      items: [
-        { icon: <FcHome size={18} />, labelKey: 'nav.dashboard', path: '/dashboard' },
-        { icon: <FcPlus size={18} />, labelKey: 'nav.newEntry', path: '/transactions/new' },
-        { icon: <FcFile size={18} />, labelKey: 'nav.billing', path: '/billing' },
-        { icon: <FcRules size={18} />, labelKey: 'nav.terms', path: '/terms' },
-        { icon: <FcList size={18} />, labelKey: 'nav.myTransactions', path: '/transactions' },
-        { icon: <FcMoneyTransfer size={18} />, labelKey: 'nav.myExpenses', path: '/expenses' },
-      ]
-    },
-    {
-      title: 'Finance & Analytics',
-      items: [
-        { icon: <FcComboChart size={18} />, labelKey: 'nav.analytics', path: '/analytics', permKey: 'analytics' },
-        { icon: <FcOpenedFolder size={18} />, labelKey: 'nav.allTransactions', path: '/admin/transactions', permKey: 'allRecords' },
-        { icon: <FcSurvey size={18} />, labelKey: 'nav.allExpenses', path: '/admin/expenses', permKey: 'allRecords' },
+  const canSee = (item: NavItem) => {
+    if (item.superOnly) return isSuperAdmin;
+    if (item.adminOnly) return isAdmin || isSuperAdmin;
+    if (!item.permKey) return true; // counter items are for everyone
+    if (isAdmin || isSuperAdmin) return true;
+    if (role === 'MANAGER') return ['services', 'expenseCategories'].includes(item.permKey);
+    if (role === 'CUSTOM') return !!user?.customPermissions?.[item.permKey]?.read;
+    return false;
+  };
 
-        { icon: <FcLibrary size={18} />, labelKey: 'nav.banks', path: '/banks', permKey: 'banks' },
-        { icon: <FcServices size={18} />, labelKey: 'nav.bankConfig', path: '/admin/bank-config', permKey: 'banks' },
-        { icon: <FcLineChart size={18} />, labelKey: 'User Performance', path: '/admin/user-performance', adminOnly: true },
-      ]
-    },
-    {
-      title: 'Services & Config',
-      items: [
-        { icon: <FcServices size={18} />, labelKey: 'nav.services', path: '/services', permKey: 'services' },
-        { icon: <FcBookmark size={18} />, labelKey: 'nav.expenseCats', path: '/admin/expense-categories', permKey: 'expenseCategories' },
-      ]
-    },
-    {
-      title: 'Logs & Reports',
-      items: [
-        { icon: <FcTimeline size={18} />, labelKey: 'Transaction Logs', path: '/admin/audit-logs', permKey: 'allRecords' },
-        { icon: <FcKindle size={18} />, labelKey: 'nav.auditLogs', path: '/logs', permKey: 'salaryLogs' },
-        { icon: <FcNews size={18} />, labelKey: 'nav.billLogs', path: '/admin/bill-logs', permKey: 'salaryLogs' },
-        { icon: <FcProcess size={18} />, labelKey: 'Automatic Transactions', path: '/admin/auto-transactions', adminOnly: true },
-        { icon: <FcPackage size={18} />, labelKey: 'nav.dataExports', path: '/admin/exports', permKey: 'analytics' },
-      ]
-    },
-    {
-      title: 'System & Users',
-      items: [
-        { icon: <FcAdvertising size={18} />, labelKey: 'System Alerts', path: '/admin/alerts', superOnly: true },
-          { icon: <FcKey size={18} />, labelKey: 'Password Requests', path: '/admin/password-requests', superOnly: true },
-        { icon: <FcConferenceCall size={18} />, labelKey: 'nav.users', path: '/users', superOnly: true },
-        { icon: <FcPrivacy size={18} />, labelKey: 'Roles', path: '/admin/roles', superOnly: true },
-        { icon: <FcGlobe size={18} />, labelKey: 'nav.serverMgmt', path: '/admin/system', superOnly: true },
-        { icon: <FcDatabase size={18} />, labelKey: 'nav.storageMgmt', path: '/admin/storage', superOnly: true },
-        { icon: <FcDataBackup size={18} />, labelKey: 'nav.renderMgmt', path: '/admin/render', superOnly: true },
-        { icon: <FcUpRight size={18} />, labelKey: 'nav.incomeMgmt', path: '/admin/income-management', superOnly: true },
-      ]
-    }
-  ];
-
+  const label = (key: string) => (key.startsWith('nav.') ? t(key as any) : key);
   const handleLogout = () => { logout(); navigate('/login'); };
 
   return (
-    <aside className={`sidebar ${isOpen ? 'mobile-open' : ''}`}>
-      <div className="sidebar-logo flex-center" style={{ padding: '24px 18px 20px', alignItems: 'center' }}>
-        <img src="/logo.png" alt="RKS Logo" style={{ height: 96, width: 'auto', objectFit: 'contain' }} />
-        <button className="sidebar-close-btn text-muted" onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, fontSize: '20px', padding: '4px' }}>
-          ✕
+    <aside className={`sidebar ${isOpen ? 'mobile-open' : ''}`} aria-label="Main menu">
+      <div className="sidebar-brand">
+        <div className="brand-mark" aria-hidden="true">R1</div>
+        <div>
+          <div className="brand-name">{APP_NAME}</div>
+          <div className="brand-sub">RKS Xerox &amp; Computer Center</div>
+        </div>
+        <button className="sidebar-close-btn icon-btn" onClick={onClose} aria-label="Close menu" style={{ marginLeft: 'auto' }}>
+          <X size={18} />
         </button>
       </div>
 
       <nav className="sidebar-nav">
-        {SECTIONS.map((section, idx) => {
-          const visibleItems = section.items.filter(item => {
-            if (item.superOnly) return isSuperAdmin;
-            if (item.adminOnly) return isAdmin || isSuperAdmin;
-
-            // Main section items (no permKey, no superOnly, no adminOnly) are visible to everyone
-            if (!item.permKey && !item.superOnly && !item.adminOnly) return true;
-
-            // Otherwise, it's an admin/custom permission item
-            if (isAdmin || isSuperAdmin) return true;
-            if (role === 'MANAGER') return ['services', 'expenseCategories'].includes(item.permKey || '');
-            if (role === 'CUSTOM' && item.permKey) {
-              return user?.customPermissions?.[item.permKey]?.read;
-            }
-            return false;
-          });
-
-          if (visibleItems.length === 0) return null;
-
+        {SECTIONS.map(section => {
+          const items = section.items.filter(canSee);
+          if (items.length === 0) return null;
           return (
-            <div className="nav-section" key={idx}>
+            <div className="nav-section" key={section.title}>
               <div className="nav-section-title">{section.title}</div>
-              {visibleItems.map(item => (
-                <NavLink key={item.path} to={item.path} end
-                  className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-                  onClick={onClose}
-                >
-                  <span className="nav-icon">{item.icon}</span>
-                  {item.labelKey.startsWith('nav.') ? t(item.labelKey as any) : item.labelKey}
+              {items.map(({ icon: Icon, labelKey, path }) => (
+                <NavLink key={path} to={path} end onClick={onClose}
+                  className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+                  <span className="nav-icon"><Icon size={18} strokeWidth={1.9} /></span>
+                  {label(labelKey)}
                 </NavLink>
               ))}
             </div>
           );
         })}
 
-        <div className="nav-section" style={{ marginTop: 'auto' }}>
-          <NavLink to="/developer" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`} onClick={onClose}>
-            <span className="nav-icon"><FcMindMap size={18} /></span>
-            Developer Info
+        <div className="nav-section" style={{ marginTop: 'auto', paddingTop: 14 }}>
+          <NavLink to="/developer" onClick={onClose} className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+            <span className="nav-icon"><Code size={18} strokeWidth={1.9} /></span>
+            About this app
           </NavLink>
-        </div>
-
-        <div className="nav-section">
-          <button className="nav-item" style={{ color: 'var(--red)' }} onClick={handleLogout}>
-            <span className="nav-icon"><FcImport size={18} /></span>
+          <button className="nav-item danger" onClick={handleLogout}>
+            <span className="nav-icon"><LogOut size={18} strokeWidth={1.9} /></span>
             {t('nav.logout')}
           </button>
         </div>
       </nav>
 
-      <div 
-        className="sidebar-user" 
-        style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
-        onClick={() => navigate('/profile')}
-      >
-        <div className="avatar" style={{ background: 'var(--color-primary)', color: 'white', fontWeight: 800 }}>
-          {user?.name?.[0]?.toUpperCase()}
-        </div>
+      <button className="sidebar-user" onClick={() => { onClose(); navigate('/profile'); }}>
+        <div className="avatar" aria-hidden="true">{user?.name?.[0]?.toUpperCase()}</div>
         <div className="user-info">
-          <div className="user-name" style={{ fontWeight: 700 }}>{user?.name}</div>
-          <div className="text-muted text-xs">View Profile</div>
+          <div className="user-name">{user?.name}</div>
+          <div className="user-role">{ROLE_LABEL[role ?? ''] ?? role}</div>
         </div>
-        <div style={{ marginLeft: 'auto', opacity: 0.5, fontSize: 12 }}>›</div>
-      </div>
+        <ChevronRight size={16} color="var(--graphite-3)" />
+      </button>
     </aside>
   );
 }
-

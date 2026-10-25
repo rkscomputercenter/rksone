@@ -9,7 +9,8 @@ import { systemApi } from '../../api';
 import { SOCKET_ORIGIN, APP_NAME } from '../../config';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { FcAdvertising } from 'react-icons/fc';
+import { Megaphone } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -18,6 +19,7 @@ interface LayoutProps {
 
 export default function Layout({ children, title }: LayoutProps) {
   const { user, logout, token } = useAuth();
+  const { theme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const [broadcast, setBroadcast] = useState<string | null>(null);
@@ -107,7 +109,7 @@ export default function Layout({ children, title }: LayoutProps) {
         fireBrowserNotification('System Alert', data.payload?.message || 'New system alert received');
       } else if (data.type === 'PERIODIC_UPDATE') {
         const { income, expenses, profit } = data.payload || {};
-        const title = '💰 Daily Financial Update';
+        const title = 'Today so far';
         const body = `Income: ₹${income || 0}\nExpenses: ₹${expenses || 0}\nProfit: ₹${profit || 0}`;
         
         // Show structured popup in-app
@@ -126,6 +128,15 @@ export default function Layout({ children, title }: LayoutProps) {
       socket.disconnect();
     };
   }, [token, logout, navigate]);
+
+  // Android status bar follows the theme (white topbar or navy)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
+      StatusBar.setStyle({ style: theme === 'dark' ? Style.Dark : Style.Light }).catch(() => {});
+      StatusBar.setBackgroundColor({ color: theme === 'dark' ? '#16223F' : '#FFFFFF' }).catch(() => {});
+    });
+  }, [theme]);
 
   // Native hardware integrations
   useEffect(() => {
@@ -146,10 +157,6 @@ export default function Layout({ children, title }: LayoutProps) {
       });
     });
 
-    import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
-      StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
-      StatusBar.setBackgroundColor({ color: '#13131A' }).catch(() => {});
-    });
 
     import('@capacitor/keyboard').then(({ Keyboard }) => {
       Keyboard.addListener('keyboardWillShow', () => {
@@ -185,94 +192,29 @@ export default function Layout({ children, title }: LayoutProps) {
         />
         <main className="page-content" style={{ flex: 1 }}>
           {broadcast && (
-            <div style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(0,0,0,0.4)',
-              zIndex: 9999,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backdropFilter: 'blur(10px)',
-              padding: '24px',
-              animation: 'fadeIn 0.3s ease-out'
-            }}>
-              <div style={{ 
-                maxWidth: 450, 
-                width: '100%', 
-                backgroundColor: 'var(--bg-elevated)',
-                borderRadius: '24px',
-                overflow: 'hidden',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 20px rgba(var(--color-primary-rgb), 0.2)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                animation: 'scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
-              }}>
-                <div style={{ 
-                  background: 'linear-gradient(135deg, var(--color-primary), #ff8c00)',
-                  padding: '32px 24px',
-                  textAlign: 'center',
-                  color: 'white'
-                }}>
-                  <div style={{ 
-                    fontSize: 56, 
-                    marginBottom: 16,
-                    filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.2))'
-                  }}><FcAdvertising size={56} /></div>
-                  <h2 style={{ 
-                    margin: 0, 
-                    fontSize: 24, 
-                    fontWeight: 900, 
-                    letterSpacing: '-0.5px',
-                    textTransform: 'uppercase'
-                  }}>System Notification</h2>
+            <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="broadcast-title" style={{ zIndex: 9999 }}>
+              <div className="modal" style={{ maxWidth: 440 }}>
+                <div className="modal-header" style={{ justifyContent: 'flex-start' }}>
+                  <span className="quick-action-icon" aria-hidden="true"><Megaphone size={18} /></span>
+                  <h2 id="broadcast-title" className="modal-title">Message from the office</h2>
                 </div>
-                
-                <div style={{ padding: '32px 24px', textAlign: 'center' }}>
-                  <div style={{ 
-                    maxHeight: '200px', 
-                    overflowY: 'auto', 
-                    marginBottom: '32px',
-                    padding: '0 8px'
+                <div className="modal-body">
+                  <p style={{ fontSize: 'var(--fs-lg)', lineHeight: 1.55, whiteSpace: 'pre-line', wordBreak: 'break-word', maxHeight: 260, overflowY: 'auto' }}>
+                    {broadcast}
+                  </p>
+                </div>
+                <div className="modal-footer">
+                  <button className="btn btn-primary btn-full" onClick={() => {
+                    if (broadcast) localStorage.setItem('dismissed_broadcast', broadcast);
+                    setBroadcast(null);
                   }}>
-                    <p style={{ 
-                      fontSize: 18, 
-                      lineHeight: 1.6, 
-                      margin: 0, 
-                      color: 'var(--text-primary)',
-                      fontWeight: 500,
-                      wordBreak: 'break-word',
-                      whiteSpace: 'pre-line'
-                    }}>
-                      {broadcast}
-                    </p>
-                  </div>
-                  
-                  <button 
-                    className="btn btn-primary btn-lg" 
-                    style={{ 
-                      width: '100%', 
-                      borderRadius: '14px',
-                      height: '56px',
-                      fontSize: '18px',
-                      fontWeight: 700,
-                      boxShadow: '0 10px 15px -3px rgba(var(--color-primary-rgb), 0.3)'
-                    }}
-                    onClick={() => {
-                      if (broadcast) localStorage.setItem('dismissed_broadcast', broadcast);
-                      setBroadcast(null);
-                    }}
-                  >
-                    Acknowledged
+                    Got it
                   </button>
-                  
-                  <div style={{ marginTop: 20, fontSize: 11, color: 'var(--text-muted)', opacity: 0.6 }}>
-                    RKS ONE • SECURE REAL-TIME
-                  </div>
                 </div>
               </div>
             </div>
           )}
-          {children}
+          <div className="page-inner">{children}</div>
         </main>
       </div>
       <BottomNav />
