@@ -167,12 +167,23 @@ export async function performManualCleanup(endDate: Date, types: string[]) {
   if (types.includes('expenses')) await prisma.expense.deleteMany({ where: { createdAt: { lt: endDate } } });
 }
 
-async function seedSystemUser() {
+// Old versions created SYSTEM_AUTO with this fixed password, which is visible in the public repo
+const LEGACY_SYSTEM_PASSWORD = 'system_auto_do_not_login';
+
+export async function seedSystemUser() {
   try {
+    const bcrypt = require('bcrypt');
+    const crypto = require('crypto');
+    // Nobody signs in as SYSTEM_AUTO, so its password is random and never stored anywhere
+    const randomHash = () => bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+
     let sysUser = await prisma.user.findUnique({ where: { username: 'SYSTEM_AUTO' } });
+    if (sysUser && await bcrypt.compare(LEGACY_SYSTEM_PASSWORD, sysUser.passwordHash)) {
+      sysUser = await prisma.user.update({ where: { id: sysUser.id }, data: { passwordHash: await randomHash() } });
+      console.log('🔒 SYSTEM_AUTO password replaced with a random one.');
+    }
     if (!sysUser) {
-      const bcrypt = require('bcrypt');
-      const hash = await bcrypt.hash('system_auto_do_not_login', 10);
+      const hash = await randomHash();
       sysUser = await prisma.user.create({
         data: {
           name: 'System Auto',

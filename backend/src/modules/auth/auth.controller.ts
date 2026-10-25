@@ -45,7 +45,8 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       include: { customRole: true }
     });
 
-    if (!user || !user.isActive) {
+    // SYSTEM_AUTO only owns automatic audit rows; it can never sign in
+    if (!user || !user.isActive || user.username === 'SYSTEM_AUTO') {
       const msg = await handleFailedLogin();
       sendUnauthorized(res, msg);
       return;
@@ -255,7 +256,7 @@ export async function verifyDownload(req: Request, res: Response, next: NextFunc
       where: { username: username.toLowerCase().trim() }
     });
 
-    if (!user || !user.isActive || user.isSuspended) {
+    if (!user || !user.isActive || user.isSuspended || user.username === 'SYSTEM_AUTO') {
       sendUnauthorized(res, 'Invalid credentials or account suspended');
       return;
     }

@@ -63,13 +63,14 @@ Found in the 2026-10-22 analysis (A = FIXED on `fix/money-and-permissions`):
 - No audit rows for password change/reset, custom roles, expense categories, `manualAdjust`; startup deletes "negative" transactions without audit (`app.ts`).
 - Last SUPER_ADMIN can be demoted via role change; maintenance broadcast skips MANAGER/CUSTOM (`socket.ts`).
 - `public/version.json` points at `/Shop_RKS_v1.0.41.apk`, but APKs are gitignored and Render builds from git: the new service cannot serve any APK. Host the bridge APK elsewhere (GitHub Release / object storage) before cutover.
+- A. `SYSTEM_AUTO` (SUPER_ADMIN) was created with a fixed password that is in the source (public repos). Login was blocked only by accident (login lowercases the username; the lookup is case-sensitive). **FIXED:** boot replaces the legacy hash with a random one; login and APK download refuse `SYSTEM_AUTO` explicitly. Production (`D:\shop-rks`) still has the fixed password — same accidental protection.
 - `getTodaySummary` excludes the `Salary` category from expenses; daily/monthly include it (inconsistent; needs a business decision).
 
 ## 6. Open decisions for the user
 - `android-native/` (untracked Kotlin app in production folder, ~55 source files, references the old URL in `ApiClient.kt`/`AuthInterceptor.kt`): **not copied**. Copy it here? (exclude `build/`, `.gradle/`, `local.properties`.)
 - Entry script: switch to `prisma migrate deploy`? The old DB was created with `db push`; migrations may have drifted from `schema.prisma`. Needs a dry run on an empty Supabase DB (`prisma migrate diff`) before changing.
 - Supabase: confirm RLS (`20260521140000_enable_rls_prisma_migrations`) covers every table; use pooler URL (6543, `pgbouncer=true`) for the app, direct URL for migrations (`directUrl` in `schema.prisma`).
-- GitHub repo name/remote for this folder (placeholder name used in docs: `hemapriyan-rk/rks-qenbel`).
+- GitHub remote: `origin` = `https://github.com/rkscomputercenter/rksone` (**public**, empty as of 2026-10-25). Supabase project created (pooler `aws-0-ap-southeast-1`, session mode 5432; public schema empty as of 2026-10-25). The DB password contains `@`: URL-encode it as `%40` in `DATABASE_URL`.
 
 ## 7. Cutover plan (high level)
 1. Create Supabase project + Render service (`rks-qenbel`), set env (`DATABASE_URL`, new `JWT_SECRET`, `ALLOWED_ORIGINS=https://rks.qenbel.site`). Attach the domain.
