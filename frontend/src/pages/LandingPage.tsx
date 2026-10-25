@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { MessageCircle, Phone, MapPin, Mail, Clock, ArrowUpRight } from 'lucide-react';
 import { RksOneLogo, RksOneMark } from '../components/brand/Logo';
 
-const PHONE = '8122778794';
+const PHONE = '9942891322';
 const EMAIL = 'rksxerox@gmail.com';
 const WHATSAPP = `https://wa.me/91${PHONE}`;
 const MAPS = 'https://share.google/HjYj0vXmUT6mbV8ev';
