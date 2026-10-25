@@ -262,6 +262,17 @@ hr { border: none; border-top: 1px solid var(--rule); }
 .sidebar-user .user-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sidebar-user .user-role { font-size: var(--fs-xs); color: var(--night-muted); }
 
+/* The sandwich (☰) button at the left of the topbar: shows or hides the menu */
+.menu-toggle {
+  width: 40px; height: 40px; flex-shrink: 0;
+  display: inline-grid; place-items: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--rule);
+  background: var(--sheet); color: var(--graphite);
+}
+.menu-toggle:hover { background: var(--sheet-3); border-color: var(--graphite-3); }
+.menu-toggle[aria-expanded="false"] { background: var(--night-2); color: #fff; border-color: var(--night-2); }
+
 /* Desktop: the menu button hides the sidebar and the page takes the full width */
 .main-content { transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
 @media (min-width: 769px) {

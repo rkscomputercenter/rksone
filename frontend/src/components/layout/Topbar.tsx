@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Menu, PanelLeftClose } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -47,9 +47,9 @@ export default function Topbar({ title, onMenuClick, menuShown }: TopbarProps) {
 
   return (
     <header className="topbar">
-      <button className="mobile-menu-btn icon-btn" onClick={onMenuClick} aria-expanded={menuShown} aria-controls="main-menu"
+      <button className="menu-toggle" onClick={onMenuClick} aria-expanded={menuShown} aria-controls="main-menu"
         aria-label={menuShown ? 'Hide menu' : 'Show menu'} title={menuShown ? 'Hide menu' : 'Show menu'}>
-        {menuShown ? <PanelLeftClose size={20} /> : <Menu size={20} />}
+        <Menu size={22} strokeWidth={2.2} />
       </button>
       <h1 className="topbar-title">{title}</h1>
 
