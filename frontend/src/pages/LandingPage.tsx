@@ -1,204 +1,210 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import './LandingPage.css';
-import ParticleGlow from '../components/effects/ParticleGlow';
+import { MessageCircle, Phone, MapPin, Mail, Clock, ArrowUpRight } from 'lucide-react';
+import { RksOneMark } from '../components/brand/Logo';
+
+const PHONE = '8122778794';
+const EMAIL = 'rksxerox@gmail.com';
+const WHATSAPP = `https://wa.me/91${PHONE}`;
+const MAPS = 'https://share.google/HjYj0vXmUT6mbV8ev';
+
+// Monday–Saturday 8:00–19:00 IST, closed on Sunday
+const OPEN_MIN = 8 * 60;
+const CLOSE_MIN = 19 * 60;
+const DAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const SERVICES: Array<{ name: string; ta: string; note: string }> = [
+  { name: 'Xerox and printing', ta: 'ஜெராக்ஸ் & பிரிண்டிங்', note: 'Black and white, colour and photo prints' },
+  { name: 'Government certificates', ta: 'அரசு சான்றிதழ்கள்', note: 'Income, community, birth and e-Sevai forms' },
+  { name: 'Aadhaar and PAN', ta: 'ஆதார் & பான்', note: 'New cards and corrections' },
+  { name: 'Lamination and binding', ta: 'லேமினேஷன் & பைண்டிங்', note: 'Spiral binding, ID and A4 lamination' },
+  { name: 'ID and visiting cards', ta: 'ஐடி & விசிட்டிங் கார்டு', note: 'Cards, flex and banner prints' },
+  { name: 'Typing', ta: 'டைப்பிங்', note: 'English and Tamil, fast and accurate' },
+  { name: 'Scanning and email', ta: 'ஸ்கேன் & இமெயில்', note: 'High-resolution scans, sent where you need them' },
+  { name: 'Internet and online help', ta: 'இணைய சேவை', note: 'Browsing and help with online applications' },
+];
+
+/** "Open now" or when it opens next, by the clock in India. */
+function shopStatus(now = new Date()) {
+  const ist = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const day = ist.getDay();
+  const min = ist.getHours() * 60 + ist.getMinutes();
+  if (day !== 0 && min >= OPEN_MIN && min < CLOSE_MIN) {
+    return { open: true, text: 'Open now', sub: CLOSE_MIN - min <= 60 ? 'Closes soon, at 7 pm' : 'Until 7 pm today' };
+  }
+  if (day !== 0 && min < OPEN_MIN) return { open: false, text: 'Closed now', sub: 'Opens today at 8 am' };
+  let next = (day + 1) % 7;
+  if (next === 0) next = 1; // closed on Sunday
+  return { open: false, text: 'Closed now', sub: `Opens ${next === (day + 1) % 7 ? 'tomorrow' : 'on ' + DAY[next]} at 8 am` };
+}
 
 export default function LandingPage() {
+  const [status, setStatus] = useState(shopStatus);
+
+  useEffect(() => {
+    const timer = setInterval(() => setStatus(shopStatus()), 60_000);
+    document.title = 'RKS Xerox & Computer Center, Harur';
+    return () => clearInterval(timer);
+  }, []);
+
   return (
-    <div className="landing-page">
-      <ParticleGlow />
-      {/* HEADER */}
-      <header className="landing-header">
-        <div className="landing-container landing-header-inner">
-          <div className="landing-logo">
-            <img src="/image2.png" alt="RKS Xerox Logo" />
-          </div>
-          <nav className="landing-nav">
-            <a href="#home" className="active">Home</a>
+    <div className="shop">
+      <header className="shop-top">
+        <div className="shop-wrap shop-top-inner">
+          <a href="#top" className="shop-top-name">RKS Xerox &amp; Computer Center</a>
+          <nav className="shop-nav" aria-label="Page">
             <a href="#services">Services</a>
-            <a href="#features">About Us</a>
-            <a href="#contact">Contact</a>
-            <a href="#location">Location</a>
+            <a href="#visit">Visit</a>
           </nav>
-          <div className="landing-header-actions">
-            <a href="https://wa.me/918122778794" target="_blank" rel="noreferrer" className="landing-btn landing-btn-outline" style={{ color: '#25D366', borderColor: 'rgba(37,211,102,0.3)' }}>
-              💬 WhatsApp
-            </a>
-            <a href="mailto:rksxerox@gmail.com" className="landing-btn landing-btn-outline" style={{ marginLeft: 8 }}>
-              ✉️ Email Us
-            </a>
-            <Link to="/login" className="landing-btn landing-btn-outline" style={{ marginLeft: 8 }}>
-              Staff Login
-            </Link>
-          </div>
+          <Link to="/login" className="shop-staff">
+            <RksOneMark size={22} /> Staff sign in
+          </Link>
         </div>
       </header>
 
-      {/* HERO SECTION */}
-      <section id="home" className="landing-hero">
-        <div className="landing-container landing-hero-inner">
-          <div>
-            <h1 className="hero-title">
-              <span className="highlight-yellow">RKS</span> XEROX<br />
-              AND COMPUTER CENTER
-            </h1>
-            <div className="hero-services">
-              Printing <span>•</span> Xerox <span>•</span> Scanning <span>•</span> Lamination <span>•</span> Online Services
-            </div>
-            <p className="hero-desc">
-              One-stop destination for printing, photocopy, online forms, browsing, typing, and computer solutions.
+      <main id="top">
+        <section className="shop-hero shop-wrap">
+          <div className="shop-hero-text">
+            <p className="shop-where">Opposite Taluk Office, Harur</p>
+            <h1 className="shop-name">RKS Xerox<br />&amp; Computer Center</h1>
+            <p className="shop-what">
+              Printing, photocopies, online forms, browsing, typing and computer services, all at one counter.
             </p>
-            <div className="hero-actions">
-              <a href="https://wa.me/918122778794" target="_blank" rel="noreferrer" className="landing-btn landing-btn-green">
-                WhatsApp Now
+            <p className="shop-what-ta" lang="ta">ஜெராக்ஸ், பிரிண்டிங், அரசு சான்றிதழ்கள், ஆதார் மற்றும் ஆன்லைன் விண்ணப்பங்கள்.</p>
+            <div className="shop-actions">
+              <a href={WHATSAPP} target="_blank" rel="noreferrer" className="btn btn-lg shop-btn-whatsapp">
+                <MessageCircle size={19} /> WhatsApp us
               </a>
-              <a href="mailto:rksxerox@gmail.com" className="landing-btn landing-btn-outline" style={{ background: '#fff' }}>
-                ✉️ Email Us
-              </a>
+              <a href={`tel:+91${PHONE}`} className="btn btn-lg btn-ghost"><Phone size={18} /> Call {PHONE}</a>
             </div>
           </div>
-          <div>
-            <div className="hero-graphic">
-              <img src="/image1.png" alt="RKS Services Graphic" />
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* SERVICES SECTION */}
-      <section id="services" className="landing-section">
-        <div className="landing-container">
-          <div className="section-header">
-            <div className="section-subtitle">Our Services</div>
-            <h2 className="section-title">SERVICES <span>WE PROVIDE</span></h2>
-          </div>
-          <div className="services-grid">
-            <div className="service-card">
-              <div className="service-icon">🖨️</div>
-              <h3 className="service-title">XEROX & PRINTING</h3>
-              <p className="service-desc">High quality B&W, Color, and Photo printing</p>
-            </div>
-            <div className="service-card">
-              <div className="service-icon">📜</div>
-              <h3 className="service-title">GOVT. CERTIFICATES</h3>
-              <p className="service-desc">Income, Community, Birth & e-Seva forms</p>
-            </div>
-            <div className="service-card">
-              <div className="service-icon">💳</div>
-              <h3 className="service-title">AADHAAR & PAN</h3>
-              <p className="service-desc">Apply for new cards or corrections quickly</p>
-            </div>
-            <div className="service-card">
-              <div className="service-icon">📋</div>
-              <h3 className="service-title">LAMINATION & BINDING</h3>
-              <p className="service-desc">Spiral binding and secure ID/A4 lamination</p>
-            </div>
-            <div className="service-card">
-              <div className="service-icon">🪪</div>
-              <h3 className="service-title">ID & VISITING CARDS</h3>
-              <p className="service-desc">Professional cards, Flex and Banner prints</p>
-            </div>
-            <div className="service-card">
-              <div className="service-icon">⌨️</div>
-              <h3 className="service-title">TYPING SERVICES</h3>
-              <p className="service-desc">Fast and accurate typing in English & Tamil</p>
-            </div>
-            <div className="service-card">
-              <div className="service-icon">📠</div>
-              <h3 className="service-title">SCANNING & EMAILING</h3>
-              <p className="service-desc">High resolution scanning and document emailing</p>
-            </div>
-            <div className="service-card">
-              <div className="service-icon">📶</div>
-              <h3 className="service-title">INTERNET BROWSING</h3>
-              <p className="service-desc">High-speed internet browsing and online assistance</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ABOUT US */}
-      <section id="features" className="landing-section" style={{ background: '#FFF8E7' }}>
-        <div className="landing-container">
-          <div className="section-header" style={{ marginBottom: 40 }}>
-            <div className="section-subtitle">About Us</div>
-            <h2 className="section-title">YOUR TRUSTED <span>SERVICE CENTER</span></h2>
-          </div>
-          <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center', fontSize: 16, color: '#555', lineHeight: 1.8 }}>
-            <p style={{ marginBottom: 32 }}>
-              Welcome to RKS Xerox and Computer Center! We are your premier one-stop destination for high-quality printing, scanning, lamination, and a wide array of online computer services. With years of experience and a commitment to customer satisfaction, we ensure fast, reliable, and affordable solutions for all your personal and business needs.
-            </p>
-            <div style={{ display: 'inline-block', textAlign: 'left', background: '#fff', padding: '32px 48px', borderRadius: 20, boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}>
-              <h4 style={{ fontSize: 18, fontWeight: 800, color: '#111', marginBottom: 20, textAlign: 'center' }}>⏱️ Opening Hours</h4>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 48, marginBottom: 12 }}>
-                <span style={{ fontWeight: 600, color: '#111' }}>Monday - Saturday</span>
-                <span style={{ color: '#FFC107', fontWeight: 800 }}>8:00 AM - 7:00 PM</span>
+          <aside className="slip shop-slip" id="visit" aria-labelledby="visit-title">
+            <div className="slip-head">
+              <div>
+                <h2 id="visit-title" className="slip-title">Visit us</h2>
+                <div className="slip-meta">Opposite Taluk Office, Harur, Tamil Nadu 636903</div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 48 }}>
-                <span style={{ fontWeight: 600, color: '#111' }}>Sunday</span>
-                <span style={{ color: '#FFC107', fontWeight: 800 }}>Closed</span>
+              <div className={`shop-status ${status.open ? 'is-open' : 'is-closed'}`} aria-live="polite">
+                <span className="dot" aria-hidden="true" />
+                <span>{status.text}</span>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
+            <div className="slip-line"><span>Monday to Saturday</span><span className="num" style={{ color: 'var(--graphite)', fontWeight: 600 }}>8 am to 7 pm</span></div>
+            <div className="slip-line"><span>Sunday</span><span style={{ color: 'var(--graphite)', fontWeight: 600 }}>Closed</span></div>
+            <p className="text-sm text-muted" style={{ margin: '10px 0 16px' }}><Clock size={14} style={{ verticalAlign: '-2px' }} /> {status.sub}</p>
+            <a href={MAPS} target="_blank" rel="noreferrer" className="btn btn-primary btn-full btn-lg"><MapPin size={18} /> Get directions</a>
+            <a href={`mailto:${EMAIL}`} className="btn btn-ghost btn-full" style={{ marginTop: 8 }}><Mail size={16} /> {EMAIL}</a>
+          </aside>
+        </section>
 
-      {/* FOOTER */}
-      <footer id="contact" className="landing-footer">
-        <div className="landing-container footer-grid">
+        <section id="services" className="shop-wrap shop-services" aria-labelledby="services-title">
+          <div className="shop-section-head">
+            <h2 id="services-title" className="shop-h2">What we do</h2>
+            <p className="text-muted">Ask at the counter for anything not listed here.</p>
+          </div>
+          <ul className="shop-list">
+            {SERVICES.map(s => (
+              <li key={s.name}>
+                <div className="shop-list-name">{s.name}</div>
+                <div className="shop-list-ta" lang="ta">{s.ta}</div>
+                <div className="shop-list-note">{s.note}</div>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="shop-wrap shop-about" aria-labelledby="about-title">
+          <h2 id="about-title" className="shop-h2">About us</h2>
+          <p>
+            RKS Xerox and Computer Center is a one-stop shop for printing, scanning, lamination and a wide range of
+            online computer services. We aim to be fast, reliable and affordable for your personal and business needs.
+          </p>
+        </section>
+      </main>
+
+      <footer className="shop-foot">
+        <div className="shop-wrap shop-foot-inner">
           <div>
-            <div className="footer-logo">
-              <img src="/image2.png" alt="RKS Logo" />
-            </div>
-            <p className="footer-desc">
-              Your one-stop solution for all printing, xerox, computer and online services.
-            </p>
-          </div>
-          <div>
-            <h4 className="footer-col-title">QUICK LINKS</h4>
-            <ul className="footer-links">
-              <li><a href="#home">Home</a></li>
-              <li><a href="#services">Services</a></li>
-              <li><a href="#features">About Us</a></li>
-              <li><a href="#contact">Contact</a></li>
-              <li><Link to="/terms" style={{ color: '#FFC107', fontWeight: 600 }}>Terms & Rules</Link></li>
-              <li><Link to="/developer" style={{ color: '#25D366', fontWeight: 600 }}>Developed By</Link></li>
-              <li><Link to="/login" style={{ color: '#FFC107', fontWeight: 600 }}>Staff Login</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="footer-col-title">CONTACT US</h4>
-            <div className="contact-item">
-              <div className="contact-icon">📞</div>
-              <div>8122778794</div>
-            </div>
-            <div className="contact-item">
-              <div className="contact-icon">✉️</div>
-              <div>rksxerox@gmail.com</div>
-            </div>
-            <div className="contact-item">
-              <div className="contact-icon">📍</div>
-              <div>RKS Xerox and Computer center,<br />opposite Taluk Office, Harur,<br />Tamil Nadu 636903</div>
+            <div className="shop-foot-name">RKS Xerox &amp; Computer Center</div>
+            <address>Opposite Taluk Office, Harur, Tamil Nadu 636903</address>
+            <div className="shop-foot-contact">
+              <a href={`tel:+91${PHONE}`}>{PHONE}</a>
+              <a href={`mailto:${EMAIL}`}>{EMAIL}</a>
             </div>
           </div>
-          <div id="location">
-            <h4 className="footer-col-title">OUR LOCATION</h4>
-            <a href="https://share.google/HjYj0vXmUT6mbV8ev" target="_blank" rel="noreferrer" className="map-placeholder">
-              📍 View on Google Maps
-            </a>
-          </div>
-        </div>
-        
-        <div className="footer-bottom">
-          <div className="landing-container">
-            <div className="opening-hours">
-              ⏱️ <strong>OPENING HOURS:</strong>
-              <span>Monday - Saturday</span> <span className="time-badge">8:00 AM - 7:00 PM</span> | 
-              <span>Sunday</span> <span className="time-badge">Closed</span>
-            </div>
-          </div>
+          <nav className="shop-foot-links" aria-label="More">
+            <Link to="/terms">Terms and rules</Link>
+            <Link to="/developer">About the software</Link>
+            <Link to="/login" className="shop-foot-staff">Staff sign in to RKS ONE <ArrowUpRight size={14} /></Link>
+          </nav>
         </div>
       </footer>
+
+      <style>{`
+        .shop { min-height: 100vh; background: var(--paper); color: var(--graphite); }
+        .shop-wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+        .shop a { text-decoration: none; }
+
+        .shop-top { position: sticky; top: 0; z-index: 10; background: var(--sheet); border-bottom: 1px solid var(--rule); padding-top: env(safe-area-inset-top, 0px); }
+        .shop-top-inner { display: flex; align-items: center; gap: 20px; height: 60px; }
+        .shop-top-name { font-weight: 700; font-stretch: 88%; font-size: var(--fs-lg); }
+        .shop-nav { display: flex; gap: 4px; margin-left: auto; }
+        .shop-nav a { padding: 6px 12px; border-radius: var(--radius-md); color: var(--graphite-2); font-weight: 550; }
+        .shop-nav a:hover { background: var(--sheet-3); color: var(--graphite); }
+        .shop-staff { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border: 1px solid var(--rule); border-radius: var(--radius-full); font-size: var(--fs-sm); font-weight: 600; }
+        .shop-staff:hover { border-color: var(--graphite-3); }
+        .shop-staff svg { border-radius: 6px; }
+
+        .shop-hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, 400px); gap: 56px; align-items: center; padding-top: 64px; padding-bottom: 72px; }
+        .shop-where { font-size: var(--fs-md); font-weight: 600; color: var(--ink); margin-bottom: 14px; }
+        .shop-name { font-size: clamp(44px, 7vw, 92px); font-weight: 700; font-stretch: 76%; line-height: 0.95; letter-spacing: -0.02em; margin-bottom: 24px; }
+        .shop-what { font-size: var(--fs-xl); line-height: 1.45; color: var(--graphite-2); max-width: 30em; }
+        .shop-what-ta { font-size: var(--fs-md); color: var(--graphite-3); margin-top: 8px; max-width: 36em; }
+        .shop-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+        .shop-btn-whatsapp { background: #1F8F4E; color: #fff; }
+        .shop-btn-whatsapp:hover { background: #18733F; }
+
+        .shop-slip { margin: 0; }
+        .shop-status { display: inline-flex; align-items: center; gap: 7px; font-size: var(--fs-sm); font-weight: 650; padding: 4px 10px; border-radius: var(--radius-full); white-space: nowrap; }
+        .shop-status .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+        .shop-status.is-open { background: var(--cash-wash); color: var(--cash); }
+        .shop-status.is-closed { background: var(--stamp-wash); color: var(--stamp); }
+
+        .shop-services { padding-top: 56px; padding-bottom: 56px; border-top: 1px solid var(--rule); }
+        .shop-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+        .shop-h2 { font-size: var(--fs-3xl); font-weight: 650; font-stretch: 82%; letter-spacing: -0.01em; }
+        .shop-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 48px; border-top: 2px solid var(--graphite); }
+        .shop-list li { display: grid; grid-template-columns: 1fr auto; gap: 2px 16px; padding: 16px 0; border-bottom: 1px solid var(--rule); }
+        .shop-list-name { font-size: var(--fs-lg); font-weight: 650; }
+        .shop-list-ta { font-size: var(--fs-sm); color: var(--ink); align-self: center; text-align: right; }
+        .shop-list-note { grid-column: 1 / -1; font-size: 14px; color: var(--graphite-3); }
+
+        .shop-about { padding-top: 24px; padding-bottom: 72px; }
+        .shop-about p { font-size: var(--fs-lg); line-height: 1.6; color: var(--graphite-2); max-width: 40em; margin-top: 12px; }
+
+        .shop-foot { background: var(--sheet); border-top: 1px solid var(--rule); padding: 32px 0 calc(32px + env(safe-area-inset-bottom, 0px)); }
+        .shop-foot-inner { display: flex; justify-content: space-between; gap: 32px; flex-wrap: wrap; }
+        .shop-foot-name { font-weight: 700; font-stretch: 88%; font-size: var(--fs-lg); }
+        .shop-foot address { font-style: normal; color: var(--graphite-3); margin-top: 2px; }
+        .shop-foot-contact { display: flex; gap: 16px; margin-top: 10px; flex-wrap: wrap; }
+        .shop-foot-contact a, .shop-foot-links a { color: var(--ink); font-weight: 600; }
+        .shop-foot-links { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+        .shop-foot-staff { display: inline-flex; align-items: center; gap: 4px; }
+
+        @media (max-width: 860px) {
+          .shop-hero { grid-template-columns: 1fr; gap: 36px; padding-top: 36px; padding-bottom: 48px; }
+          .shop-list { grid-template-columns: 1fr; }
+          .shop-nav { display: none; }
+          .shop-top-name { font-size: var(--fs-md); }
+          .shop-staff { margin-left: auto; }
+        }
+        @media (max-width: 480px) {
+          .shop-wrap { padding: 0 16px; }
+          .shop-actions .btn { flex: 1; }
+          .shop-top-name { display: none; }
+        }
+      `}</style>
     </div>
   );
 }
