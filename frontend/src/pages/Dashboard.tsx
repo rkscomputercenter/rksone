@@ -85,6 +85,16 @@ export default function Dashboard() {
 
       {loadError && <div className="alert alert-error mb-16">{loadError}</div>}
 
+      <h2 className="sr-only">{t('dashboard.quickActions' as any)}</h2>
+      <div className="quick-actions">
+        {shortcuts.map(({ icon: Icon, label, to }) => (
+          <Link key={to} to={to} className="quick-action-card">
+            <span className="quick-action-icon"><Icon size={18} /></span>
+            <span className="quick-action-label">{label}</span>
+          </Link>
+        ))}
+      </div>
+
       {isAdmin ? (
         <>
           <div className="dayline" aria-label="Today’s money">
@@ -209,16 +219,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-
-      <h2 className="section-title">{t('dashboard.quickActions' as any)}</h2>
-      <div className="quick-actions">
-        {shortcuts.map(({ icon: Icon, label, to }) => (
-          <Link key={to} to={to} className="quick-action-card">
-            <span className="quick-action-icon"><Icon size={18} /></span>
-            <span className="quick-action-label">{label}</span>
-          </Link>
-        ))}
-      </div>
     </Layout>
   );
 }
