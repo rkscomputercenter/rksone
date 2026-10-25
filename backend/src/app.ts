@@ -12,10 +12,10 @@ import cors from 'cors';
 import compression from 'compression';
 import morgan from 'morgan';
 import { stream, logger } from './utils/logger';
-import rateLimit from 'express-rate-limit';
 
 import { env } from './config/env';
 import { originCallback } from './config/origins';
+import { apiLimiter } from './config/rateLimit';
 import { globalErrorHandler } from './utils/response';
 
 // Route imports
@@ -52,16 +52,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// Rate limiting — 100 requests per 15 minutes per IP
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, error: 'Too many requests, please try again later.' },
-  skip: () => env.NODE_ENV === 'test',
-});
-app.use('/api/', limiter);
+// Rate limiting: per signed-in user, or per IP without a token (config/rateLimit.ts)
+app.use('/api/', apiLimiter);
 
 // ── Middleware ─────────────────────────────────────────────────────
 app.use(compression({ filter: (req, res) => { if (req.url.endsWith('.apk')) return false; return compression.filter(req, res); } }));

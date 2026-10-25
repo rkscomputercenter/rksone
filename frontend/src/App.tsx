@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './routes/ProtectedRoute';
+import AppShell from './components/layout/AppShell';
 
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/Login';
@@ -110,20 +110,7 @@ function CustomSplashScreen({ onComplete }: { onComplete: () => void }) {
 export default function App() {
   const [showSplash, setShowSplash] = useState(Capacitor.isNativePlatform());
 
-  useEffect(() => {
-    // Hardware back button
-    CapacitorApp.addListener('backButton', ({ canGoBack }) => {
-      if (!canGoBack) {
-        CapacitorApp.exitApp();
-      } else {
-        window.history.back();
-      }
-    });
-
-    return () => {
-      CapacitorApp.removeAllListeners();
-    };
-  }, []);
+  // Android back button: handled by AppShell for signed-in pages; elsewhere Capacitor goes back by default.
 
   return (
     <>
@@ -141,6 +128,8 @@ export default function App() {
           <Route path="/download" element={<DownloadAppPage />} />
           <Route path="/" element={<RootRedirect />} />
 
+          {/* Signed-in pages share one frame (sidebar, topbar, live updates) that stays mounted */}
+          <Route element={<AppShell />}>
           {/* All authenticated users */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
@@ -197,9 +186,10 @@ export default function App() {
             <Route path="/admin/password-requests" element={<PasswordRequestsPage />} />
           </Route>
 
-          <Route path="/maintenance" element={<MaintenancePage />} />
           <Route path="/restricted" element={<RestrictedAccessPage />} />
+          </Route>
 
+          <Route path="/maintenance" element={<MaintenancePage />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>

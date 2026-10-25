@@ -56,7 +56,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setState(s => ({ ...s, user, isAuthenticated: true, isLoading: false, activeShop: newActiveShop }));
       }
-    } catch {
+    } catch (err: any) {
+      // Only "you are not signed in" signs the person out. A busy server (429), a crash (500)
+      // or no network keeps them in with the last known profile; the next request retries.
+      const status = err?.response?.status;
+      const cached = localStorage.getItem('rks_user');
+      if (status !== 401 && status !== 403 && cached) {
+        setState(s => ({ ...s, user: JSON.parse(cached) as User, isAuthenticated: true, isLoading: false }));
+        return;
+      }
       logout();
     }
   }, [logout]);
@@ -127,8 +135,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setActiveShop = useCallback((shop: Shop) => {
     if (state.user?.shopAccess.includes(shop)) {
       localStorage.setItem('rks_activeShop', shop);
+      // No full reload: AppShell keys the page by shop, so the page reloads its data for the new shop
       setState(s => ({ ...s, activeShop: shop }));
-      window.location.reload();
     }
   }, [state.user?.shopAccess]);
 
