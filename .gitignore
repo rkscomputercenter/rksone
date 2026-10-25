@@ -20,3 +20,6 @@ backend/logs/
 
 # Local database backups — contain data and password hashes
 backups/
+
+# Deployment env files (database password, login secret): never commit
+deploy-secrets/
