@@ -43,6 +43,7 @@ import PasswordRequestsPage from './pages/admin/PasswordRequestsPage';
 import RestrictedAccessPage from './pages/RestrictedAccessPage';
 import DownloadAppPage from './pages/DownloadAppPage';
 import AppUpdater from './components/AppUpdater';
+import { RksOneLogo } from './components/brand/Logo';
 
 function RootRedirect() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -78,7 +79,7 @@ function CustomSplashScreen({ onComplete }: { onComplete: () => void }) {
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      background: 'var(--bg-base)', zIndex: 99999,
+      background: 'radial-gradient(120% 80% at 60% 35%, #1A1546 0%, #0B0A1F 55%, #07060F 100%)', zIndex: 99999,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       opacity: fading ? 0 : 1, transition: 'opacity 0.5s ease-in-out',
       pointerEvents: 'none'
@@ -93,16 +94,9 @@ function CustomSplashScreen({ onComplete }: { onComplete: () => void }) {
           animation: pulseLogo 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
       `}</style>
-      <img 
-        src="/app-logo.png" 
-        alt="Logo" 
-        className="splash-logo-anim"
-        style={{ 
-          width: '130px', height: '130px', objectFit: 'contain', 
-          borderRadius: '50%', background: '#fff', padding: '8px', 
-          boxShadow: '0 15px 35px rgba(0,0,0,0.15)' 
-        }} 
-      />
+      <div className="splash-logo-anim" style={{ color: '#fff', width: 'min(78vw, 320px)' }}>
+        <RksOneLogo height={92} glow style={{ width: '100%', height: 'auto' }} />
+      </div>
     </div>
   );
 }

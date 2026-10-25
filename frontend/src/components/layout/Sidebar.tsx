@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { APP_NAME } from '../../config';
+import { RksOneLogo } from '../brand/Logo';
 
 interface NavItem {
   icon: LucideIcon;
@@ -110,9 +110,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
     <aside className={`sidebar ${isOpen ? 'mobile-open' : ''}`} aria-label="Main menu">
       <div className="sidebar-brand">
-        <div className="brand-mark" aria-hidden="true">R1</div>
         <div>
-          <div className="brand-name">{APP_NAME}</div>
+          <RksOneLogo height={48} className="brand-logo" />
           <div className="brand-sub">RKS Xerox &amp; Computer Center</div>
         </div>
         <button className="sidebar-close-btn icon-btn" onClick={onClose} aria-label="Close menu" style={{ marginLeft: 'auto' }}>

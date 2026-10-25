@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Smartphone } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../context/AuthContext';
-import { APP_NAME } from '../config';
+import { RksOneLogo } from '../components/brand/Logo';
 
 export default function LoginPage() {
   const { login, isAuthenticated } = useAuth();
@@ -46,10 +46,7 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <section className="login-intro">
-        <div className="login-brand">
-          <div className="brand-mark" aria-hidden="true">R1</div>
-          <div className="brand-name" style={{ fontSize: 'var(--fs-xl)' }}>{APP_NAME}</div>
-        </div>
+        <div className="login-brand"><RksOneLogo height={120} glow /></div>
         <p className="login-lede">
           Sales counter, expenses and bank book for RKS Xerox &amp; Computer Center, Harur.
         </p>
@@ -120,27 +117,30 @@ export default function LoginPage() {
           min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
           background: var(--paper);
         }
+        /* The one dark brand panel: the logo on its own night background */
         .login-intro {
           display: flex; flex-direction: column; gap: 22px; justify-content: center;
           padding: 48px clamp(24px, 6vw, 96px);
-          border-right: 1px solid var(--rule);
-          background:
-            repeating-linear-gradient(to bottom, transparent 0 39px, var(--rule-soft) 39px 40px),
-            var(--sheet);
+          color: #ECEAF8;
+          background: radial-gradient(120% 80% at 70% 30%, #1A1546 0%, #0B0A1F 55%, #07060F 100%);
         }
-        .login-brand { display: flex; align-items: center; gap: 12px; }
-        .login-brand .brand-mark { width: 44px; height: 44px; font-size: 18px; }
+        .login-brand { margin-left: -14px; line-height: 0; }
+        .login-brand svg { max-width: 100%; height: auto; }
         .login-lede {
-          font-size: clamp(26px, 3.2vw, 40px); font-weight: 600; font-stretch: 85%;
-          line-height: 1.15; letter-spacing: -0.015em; max-width: 15em; color: var(--graphite);
+          font-size: clamp(22px, 2.6vw, 32px); font-weight: 550; font-stretch: 88%;
+          line-height: 1.2; letter-spacing: -0.01em; max-width: 18em; color: #ECEAF8;
         }
-        .login-foot { font-size: var(--fs-sm); color: var(--graphite-3); max-width: 34em; }
+        .login-foot { font-size: var(--fs-sm); color: #A9A6C6; max-width: 34em; }
+        .login-foot .btn-link { color: #C9B8FF; }
+        .login-intro .btn-ghost { background: transparent; color: #ECEAF8; border-color: rgba(236, 234, 248, 0.28); }
+        .login-intro .btn-ghost:hover { background: rgba(236, 234, 248, 0.08); border-color: rgba(236, 234, 248, 0.5); }
         .login-form-wrap { display: flex; align-items: center; justify-content: center; padding: 48px 24px; }
         .login-slip { width: 100%; max-width: 400px; }
         @media (max-width: 860px) {
           .login-page { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-          .login-intro { border-right: none; border-bottom: 1px solid var(--rule); padding: calc(28px + env(safe-area-inset-top, 0px)) 20px 24px; gap: 14px; }
-          .login-lede { font-size: 22px; }
+          .login-intro { padding: calc(24px + env(safe-area-inset-top, 0px)) 20px 24px; gap: 12px; }
+          .login-brand svg { width: 240px; }
+          .login-lede { font-size: 18px; }
           .login-foot { display: none; }
           .login-form-wrap { align-items: flex-start; padding: 32px 16px 40px; }
         }

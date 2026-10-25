@@ -1,6 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#1F3A93"/>
-  <path d="M14 18h36v30H14z" fill="#fff"/>
-  <path d="M14 18h36" stroke="#C9D3EE" stroke-width="4" stroke-dasharray="4 3"/>
-  <text x="32" y="42" text-anchor="middle" font-family="Arial Narrow, Arial, sans-serif" font-weight="700" font-size="20" fill="#1F3A93">R1</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- RKS ONE mark: the R with its violet wedge inside the orbit (same paths as components/brand/Logo.tsx) -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#151238"/>
+      <stop offset="1" stop-color="#07060F"/>
+    </linearGradient>
+    <linearGradient id="wedge" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#A43CF5"/>
+      <stop offset="1" stop-color="#7B4DFF"/>
+    </linearGradient>
+    <linearGradient id="orbit" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8B3CF4"/>
+      <stop offset="0.6" stop-color="#C9A8FF"/>
+      <stop offset="1" stop-color="#5F7DFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <path fill="url(#orbit)" d="M22 50 C 44 30, 86 20, 104 26 C 118 31, 116 44, 104 54 C 108 44, 104 37, 94 36 C 74 34, 46 40, 22 50 Z"/>
+  <path fill="url(#orbit)" opacity="0.85" d="M106 88 C 84 104, 46 112, 28 106 C 14 101, 14 90, 26 82 C 22 92, 28 97, 40 98 C 60 99, 86 94, 106 88 Z"/>
+  <g transform="translate(34 38) scale(0.47)" fill="#fff">
+    <path d="M14 0 H84 C104 0 118 14 118 31 C118 48 104 61 84 61 H52 L36 37 H82 C87 37 91 35 91 30.5 C91 26 87 24 82 24 H30 Z"/>
+    <path d="M64 61 H96 L128 100 H94 Z"/>
+    <path fill="url(#wedge)" d="M0 100 L52 32 V100 Z"/>
+  </g>
 </svg>

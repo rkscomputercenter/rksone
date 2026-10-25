@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { RksOneMark } from '../components/brand/Logo';
 
 export default function MaintenancePage() {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ export default function MaintenancePage() {
       textAlign: 'center',
       padding: 20
     }}>
-      <div className="brand-mark" style={{ width: 56, height: 56, fontSize: 22, margin: '0 auto 20px' }} aria-hidden="true">R1</div>
+      <RksOneMark size={72} style={{ margin: '0 auto 20px' }} />
       <h1 className="page-header-title" style={{ marginBottom: 10 }}>RKS ONE is being updated</h1>
       <p style={{ fontSize: 17, color: 'var(--text-secondary)', maxWidth: 520, lineHeight: 1.6, marginBottom: 28 }}>
         Everything you entered is saved. Sales and expenses can be entered again as soon as the update finishes.

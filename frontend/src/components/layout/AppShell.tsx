@@ -105,9 +105,9 @@ export default function AppShell({ children, title: fixedTitle }: AppShellProps)
           try {
             if ('serviceWorker' in navigator) {
               const reg = await navigator.serviceWorker.ready;
-              reg.showNotification(title, { body, icon: '/logo.png', badge: '/logo.png' });
+              reg.showNotification(title, { body, icon: '/favicon.svg', badge: '/favicon.svg' });
             } else {
-              new Notification(title, { body, icon: '/logo.png' });
+              new Notification(title, { body, icon: '/favicon.svg' });
             }
           } catch (e) {
             console.error('Web notification failed', e);
