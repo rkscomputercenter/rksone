@@ -79,27 +79,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [refreshUser]);
 
-  // Auto-logout after 8 hours of session
-  useEffect(() => {
-    const checkSession = () => {
-      const loginTime = localStorage.getItem('rks_loginTime');
-      if (loginTime && state.isAuthenticated) {
-        const elapsed = Date.now() - parseInt(loginTime, 10);
-        const EIGHT_HOURS_MS = 8 * 60 * 60 * 1000;
-        if (elapsed > EIGHT_HOURS_MS) {
-          logout();
-          alert('Your session has expired after 8 hours. Please log in again.');
-        }
-      }
-    };
-    
-    // Check every minute
-    const intervalId = setInterval(checkSession, 60 * 1000);
-    // Initial check
-    checkSession();
-    
-    return () => clearInterval(intervalId);
-  }, [state.isAuthenticated, logout]);
+  // How long someone stays signed in is the server's rule, not the app's: the sign-in renews every
+  // time the app is used and ends after 7 days without use, or when a super admin ends the session.
+  // (An older version signed everyone out after a fixed 8 hours, which made staff retype passwords daily.)
+  useEffect(() => { try { localStorage.removeItem('rks_loginTime'); } catch { /* storage blocked */ } }, []);
 
   const login = async (username: string, password: string) => {
     const res = await authApi.login(username, password);
@@ -115,8 +98,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (refreshToken) localStorage.setItem('rks_refreshToken', refreshToken);
     localStorage.setItem('rks_user', JSON.stringify(castUser));
     localStorage.setItem('rks_activeShop', shop);
-    localStorage.setItem('rks_loginTime', Date.now().toString());
-    
     setState({ user: castUser, token, isAuthenticated: true, isLoading: false, activeShop: shop });
   };
 

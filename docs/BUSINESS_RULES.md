@@ -38,7 +38,7 @@ Extracted from the code in the production folder (2026-10-21). "Intended" means 
 - `CASH-BALANCE` (isCash) and `CANARA BANK` are created on demand by reconciliation. Balances change via: expense deduction, deposit, adjust, set, hard reset, and reconciliation. All changes appear in the audit log (`bank_accounts`).
 
 ## Auth / sessions
-- Login creates a `Session`; access token 15 min, refresh token 7 days (stored on the session, rotated on refresh).
+- Login creates a `Session`; access token 15 min, refresh token 7 days (stored on the session, rotated on refresh). Staff stay signed in while they use the app and are signed out after 7 days without use, or when a super admin ends the session (decision 2026-10-26; the old app signed everyone out after a fixed 8 hours, in the client).
 - A session can be kicked or logged out; `authenticate` rejects kicked/logged-out sessions, inactive users, temporarily banned users (`bannedUntil`).
 - Maintenance mode (`SystemConfig.maintenanceMode`) blocks everyone except `SUPER_ADMIN` (login, API, downloads).
 - Forgot-password creates a `PasswordResetRequest` for admins; response never reveals whether the user exists.
