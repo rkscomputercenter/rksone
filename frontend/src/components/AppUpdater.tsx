@@ -71,6 +71,7 @@ export default function AppUpdater() {
     const timer = setInterval(check, RECHECK_MS);
     // Also when the person comes back to the app
     const resume = CapacitorApp.addListener('appStateChange', ({ isActive }) => { if (isActive) check(); });
+    resume.catch(() => {}); // no resume hook on this device: the 2-hour check still runs
     return () => { clearInterval(timer); resume.then(h => h.remove()).catch(() => {}); };
   }, [check]);
 
