@@ -8,6 +8,9 @@ import { Capacitor } from '@capacitor/core';
 
 export const APP_NAME = 'RKS ONE';
 
+/** This build's version (package.json). Installed apps compare it with <web app>/version.json. */
+export const APP_VERSION: string = __APP_VERSION__;
+
 const env = import.meta.env;
 const trim = (url: string) => url.replace(/\/$/, '');
 

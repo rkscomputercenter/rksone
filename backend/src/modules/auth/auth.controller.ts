@@ -269,24 +269,35 @@ export async function verifyDownload(req: Request, res: Response, next: NextFunc
       return;
     }
 
-    // Log the download event (non-blocking)
-    try {
-      const alert = await prisma.systemAlert.create({
-        data: {
-          type: 'INFO',
-          source: 'SYSTEM',
-          message: `User ${user.username} downloaded the Android App.`,
-          ipAddress: ip
-        }
-      });
-      socketBroadcast({ type: 'NEW_ALERT', targetRole: 'SUPER_ADMIN', payload: alert });
-    } catch (logErr) {
-      console.error('[verifyDownload] Failed to log download event:', logErr);
-    }
-
+    await recordAppDownload(user.username, ip);
     sendSuccess(res, { apkUrl: getCurrentApkUrl() }, 200, undefined, 'Verification successful. Download started.');
   } catch (err) {
     next(err);
+  }
+}
+
+/**
+ * The signed-in person updates the Android app without typing the password again.
+ * (authenticate has already refused suspended users, and everyone but super admins in maintenance.)
+ */
+export async function appDownload(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await recordAppDownload(req.user!.username, req.ip || req.socket.remoteAddress || 'unknown');
+    sendSuccess(res, { apkUrl: getCurrentApkUrl() }, 200, undefined, 'Download started.');
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Tells super admins who downloaded the app. Never blocks the download. */
+async function recordAppDownload(username: string, ip: string): Promise<void> {
+  try {
+    const alert = await prisma.systemAlert.create({
+      data: { type: 'INFO', source: 'SYSTEM', message: `User ${username} downloaded the Android App.`, ipAddress: ip },
+    });
+    socketBroadcast({ type: 'NEW_ALERT', targetRole: 'SUPER_ADMIN', payload: alert });
+  } catch (logErr) {
+    console.error('[recordAppDownload] Failed to log download event:', logErr);
   }
 }
 

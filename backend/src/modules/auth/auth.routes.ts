@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { login, getMe, changePassword, verifyDownload, forgotPassword, refreshToken } from './auth.controller';
+import { login, getMe, changePassword, verifyDownload, appDownload, forgotPassword, refreshToken } from './auth.controller';
 import { authenticate } from '../../middleware/auth';
 import { validate, loginSchema, changePasswordSchema } from '../../utils/validation';
 
@@ -33,8 +33,12 @@ router.post('/forgot-password', forgotPassword);
 // POST /api/auth/refresh - public
 router.post('/refresh', refreshToken);
 
-// POST /api/auth/verify-download - public (with basic auth body)
-router.post('/verify-download', verifyDownload);
+// POST /api/auth/verify-download - public (username + password in the body). Same slow-down as /login:
+// without it, this endpoint was a way to guess passwords without the sign-in delay.
+router.post('/verify-download', loginSpeedLimiter, verifyDownload);
+
+// GET /api/auth/app-download - signed-in users get the APK link without typing the password again
+router.get('/app-download', authenticate, appDownload);
 
 // GET /api/auth/me — protected
 router.get('/me', authenticate, getMe);

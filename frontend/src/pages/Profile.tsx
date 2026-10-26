@@ -4,6 +4,7 @@ import Layout from '../components/layout/Layout';
 import { authApi } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { money } from '../components/sales/SalesLedger';
+import { APP_NAME, APP_VERSION } from '../config';
 
 const ROLE_LABEL: Record<string, string> = {
   USER: 'Staff', MANAGER: 'Manager', ADMIN: 'Admin', SUPER_ADMIN: 'Super admin', CUSTOM: 'Custom role',
@@ -121,6 +122,7 @@ export default function ProfilePage() {
                 </form>
               </section>
             </div>
+            <p className="text-xs text-muted" style={{ textAlign: 'center', marginTop: 8 }}>{APP_NAME} version {APP_VERSION}</p>
           </>
         )}
       </div>

@@ -131,7 +131,7 @@ Then open https://rksone.qenbel.site, sign in, and check that the live updates c
 | `ALLOWED_ORIGINS` | `https://rksone.qenbel.site,https://app.rksone.qenbel.site` |
 | `DATABASE_URL` | `postgresql://postgres.<project-ref>:<DB_PASSWORD>@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require&connection_limit=5` with every `@` in the password written `%40` |
 | `JWT_SECRET` | Render's **Generate** button (a new random value; keep it) |
-| `APK_URL` | leave empty until the Android APK is hosted |
+| `APK_URL` | `https://github.com/rkscomputercenter/rksone/releases/latest/download/RKS_ONE.apk` (the newest GitHub Release's APK) |
 
 ### Vercel (Project)
 | Field | Value |
@@ -154,3 +154,39 @@ These two are public by design (they are inside the web app); never put a secret
 2. Vercel: create the project with the values above and deploy.
 3. Domains: add the three domains, then the DNS records from section 4.
 4. Check section 6, then sign in.
+
+---
+
+## Android app (RKS ONE)
+
+The Android app is the web app bundled into an APK with Capacitor (`com.shoprks.app`). A new web version reaches
+phones only as a new APK, so the app has an update manager and a version number.
+
+### How an installed app finds updates
+| App | Asks | Downloads from |
+|---|---|---|
+| **1.0.41 and older** (the Shop RKS in the field) | `https://shop-rks.onrender.com/version.json`, then checks the password against the **old** API | `/Shop_RKS_v1.0.41.apk` on the old server (the file name is fixed in the old server's code) |
+| **1.0.42 and newer** (RKS ONE) | `https://rksone.qenbel.site/version.json` | the link from the API (`APK_URL`), after one tap if signed in, or a username and password if not |
+
+The new app's popup shows when `version` in `version.json` is newer than the app. `minVersion` makes it mandatory
+(no "Later"); "Later" hides it for 6 hours. It re-checks on start, when the app comes back to the front, and every 2 hours.
+
+### Releasing a new version
+1. `cd frontend && npm run version:set -- 1.0.43` sets the version in `package.json`, `public/version.json` and `android/app/build.gradle`
+   (`versionCode = major*10000 + minor*100 + patch`; it refuses a number that is not higher: Android will not update otherwise).
+2. Write the release notes in `public/version.json`. Do **not** push yet.
+3. `npm run build && npx cap sync android`
+4. `cd android && gradlew assembleRelease` (JDK 21 from Android Studio: `JAVA_HOME=C:\Program Files\Android\Android Studio\jbr`)
+5. `node scripts/package-release.mjs` checks the signature against the installed app and writes `release/`.
+6. Upload `release/RKS_ONE.apk` to a GitHub Release (tag `v1.0.43`; the API's `APK_URL` is
+   `https://github.com/rkscomputercenter/rksone/releases/latest/download/RKS_ONE.apk`, so it always serves the newest).
+7. Only now push `public/version.json`. Phones start offering the update as soon as Vercel serves it.
+
+### Signing
+Always the original keystore (`D:\shop-rks\frontend\android\app\release.keystore`, alias `shoprks`), through the gitignored
+`android/keystore.properties`. A different key makes Android refuse to install over the existing app. Back the keystore up
+somewhere safe: if it is lost, every installed app must be uninstalled and reinstalled by hand.
+SHA-256 of the certificate: `D6:BF:D3:D6:5D:3F:8F:F1:13:23:38:97:07:B7:38:73:AF:96:C6:AD:FA:D1:19:39:6E:10:2C:19:2B:BF:34:39`.
+
+### The one-time bridge (moving installed apps from the old server)
+`release/old-server/` (made by step 5) holds the two files to put in `D:\shop-rks\frontend\public\` and a README.
