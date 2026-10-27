@@ -5,6 +5,7 @@ import SalesLedger, { CAT_LABEL, isTodayIST, istDate, money } from '../../compon
 import { transactionsApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import type { Transaction } from '../../types';
+import { PageLoading } from '../../components/ui/Loading';
 
 export default function AdminTransactions() {
   const { isSuperAdmin, user } = useAuth();
@@ -67,7 +68,7 @@ export default function AdminTransactions() {
 
       {error && <div className="alert alert-error mb-16" role="alert">{error}</div>}
 
-      {loading ? <div className="page-loading"><div className="spinner spinner-lg" /></div> : filtered.length === 0 ? (
+      {loading ? <PageLoading /> : filtered.length === 0 ? (
         <div className="card empty-state">
           <div className="empty-state-icon"><ListOrdered size={28} /></div>
           <div className="empty-state-title">{transactions.length ? 'Nothing matches these filters' : 'No sales on this day'}</div>

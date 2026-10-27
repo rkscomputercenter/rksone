@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../../components/layout/Layout';
 import { systemApi } from '../../api';
+import { PageLoading } from '../../components/ui/Loading';
 
 interface AutoTx {
   id: string;
@@ -76,7 +77,7 @@ export default function AutomaticTransactionsPage() {
 
       <div className="card">
         {loading ? (
-          <div className="page-loading"><div className="spinner spinner-lg" /></div>
+          <PageLoading />
         ) : transactions.length === 0 ? (
           <div className="empty-state">
             

@@ -96,8 +96,19 @@ Then open https://rksone.qenbel.site, sign in, and check that the live updates c
 
 - **API calls fail with CORS errors:** the page's address is missing from `ALLOWED_ORIGINS` on Render. Write it exactly, scheme included; a trailing slash is tolerated.
 - **First request takes ~30 s (the server was asleep):** Render's free tier sleeps after 15 idle minutes. `KEEP_AWAKE=always` makes the server ping its own public URL every 10 minutes, day and night, which keeps it from falling asleep. That cannot wake a server that is already asleep: after a deploy, restart or crash, open `/api/health` once. For a guarantee, use a paid Starter instance (and drop `KEEP_AWAKE`). The nightly jobs (bank totals at 20:00 and 23:59, maintenance at 01:00) only run while the server is awake.
+- **The app is slow:** check where the API runs. The database is in Singapore, and a page makes several database round trips, so an API in another region (Ohio is about 250 ms away per trip) makes every screen wait. Render cannot move an existing service to another region; see "Moving the API to Singapore" below.
 - **Container exits with `Invalid environment configuration`:** `DATABASE_URL` or `JWT_SECRET` (16+ characters) is missing or wrong.
 - **Database unreachable:** Supabase free projects pause after 7 days of inactivity. Restore the project in the dashboard, then redeploy.
+
+## Moving the API to Singapore
+
+Render sets a service's region when it is created and cannot change it afterwards, so a service created in the wrong region is replaced, not edited. Nothing in the data moves: the database is on Supabase and stays where it is.
+
+1. **Create the new service** (New, Web Service, same repository and branch, Docker, **Region: Singapore**). Add the environment variables again: Environment, "Add from .env", paste `deploy-secrets/render.env`. To keep everyone's current sign-ins valid, copy the old service's `JWT_SECRET` instead of letting the new one generate its own (nobody is on the new system yet, so a new one is also fine).
+2. **Check it:** open `https://<new-service>.onrender.com/api/health`. It should answer `ok`, with `database: connected`.
+3. **Move the domain:** a custom domain can sit on one service only. On the old service, Settings, Custom Domains, delete `api.rksone.qenbel.site`. On the new service, add it. At the DNS provider change the `api.rksone` CNAME to the new service's `<new-service>.onrender.com`. Wait for Render to show the domain verified and the certificate issued.
+4. **Remove the old service:** Settings, Delete Web Service (or Suspend while you check). Do not leave both running: `KEEP_AWAKE=always` uses almost all of the 750 free hours a month, so two free services in the same workspace run it out.
+5. **Confirm:** `https://api.rksone.qenbel.site/api/health` answers, and the web app signs in. The first request after a deploy can take 30 s; later ones should be quick.
 
 ## Free-tier limits
 

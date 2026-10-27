@@ -55,7 +55,7 @@ const SECTIONS: NavSection[] = [
       { icon: ClipboardList, labelKey: 'nav.allExpenses', path: '/admin/expenses', permKey: 'allRecords' },
       { icon: Landmark, labelKey: 'nav.banks', path: '/banks', permKey: 'banks' },
       { icon: SlidersHorizontal, labelKey: 'nav.bankConfig', path: '/admin/bank-config', permKey: 'banks' },
-      { icon: TrendingUp, labelKey: 'Staff performance', path: '/admin/user-performance', adminOnly: true },
+      { icon: TrendingUp, labelKey: 'Staff performance', path: '/admin/user-performance', permKey: 'analytics' },
     ],
   },
   {
@@ -91,7 +91,7 @@ const SECTIONS: NavSection[] = [
 ];
 
 export default function Sidebar({ isOpen, onClose, onToggle }: SidebarProps) {
-  const { user, role, isAdmin, isSuperAdmin, logout } = useAuth();
+  const { user, role, isAdmin, isSuperAdmin, logout, hasPermission } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -100,10 +100,7 @@ export default function Sidebar({ isOpen, onClose, onToggle }: SidebarProps) {
     if (item.superOnly) return isSuperAdmin;
     if (item.adminOnly) return isAdmin || isSuperAdmin;
     if (!item.permKey) return true; // counter items are for everyone
-    if (isAdmin || isSuperAdmin) return true;
-    if (role === 'MANAGER') return ['services', 'expenseCategories'].includes(item.permKey);
-    if (role === 'CUSTOM') return !!user?.customPermissions?.[item.permKey]?.read;
-    return false;
+    return hasPermission(item.permKey); // admins, managers (services, categories) and custom roles by their grants
   };
 
   // Groups after "Counter" fold away. Which ones are open is remembered on this device,

@@ -14,18 +14,15 @@ interface TopbarProps {
 
 const SHOP_LABEL: Record<Shop, string> = { SHOP_COMPUTER: 'Computer', SHOP_XEROX: 'Xerox' };
 
-/** Render free tier: 750 h/month; the service is awake Mon–Sat 06:00–21:00 IST. */
+/**
+ * Render free tier: 750 h/month. The API keeps itself awake around the clock (KEEP_AWAKE=always), so every
+ * hour of the month counts. (Estimate from the calendar: Render's own usage page has the exact figure.)
+ */
 function renderUsage() {
   const istNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
-  let hoursUsed = 0;
-  for (let day = 1; day <= istNow.getDate(); day++) {
-    const d = new Date(istNow.getFullYear(), istNow.getMonth(), day);
-    if (d.getDay() === 0) continue;
-    if (day < istNow.getDate()) hoursUsed += 15;
-    else if (istNow.getHours() >= 21) hoursUsed += 15;
-    else if (istNow.getHours() >= 6) hoursUsed += (istNow.getHours() - 6) + istNow.getMinutes() / 60;
-  }
-  return { used: Math.floor(hoursUsed), remaining: Math.floor(750 - hoursUsed) };
+  const startOfMonth = new Date(istNow.getFullYear(), istNow.getMonth(), 1);
+  const hoursUsed = Math.min(750, (istNow.getTime() - startOfMonth.getTime()) / 3_600_000);
+  return { used: Math.floor(hoursUsed), remaining: Math.max(0, Math.floor(750 - hoursUsed)) };
 }
 
 export default function Topbar({ title, onMenuClick, menuShown }: TopbarProps) {
@@ -66,7 +63,7 @@ export default function Topbar({ title, onMenuClick, menuShown }: TopbarProps) {
         {shops.length === 1 && activeShop && <span className="shop-tag">{SHOP_LABEL[activeShop as Shop]}</span>}
 
         {renderStats && (
-          <div className="render-stats-widget hide-mobile" title="Render free tier hours this month">
+          <div className="render-stats-widget hide-mobile" title="Estimate of the Render free hours used this month, with the server awake day and night">
             <span className="render-stats-label">Server hours</span>
             <span className="render-stats-value" style={{ color: renderStats.remaining < 50 ? 'var(--stamp)' : 'var(--graphite-2)' }}>
               {renderStats.used} used, {renderStats.remaining} left

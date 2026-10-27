@@ -4,6 +4,7 @@ import Layout from '../../components/layout/Layout';
 import { servicesApi } from '../../api';
 import { useLanguage } from '../../context/LanguageContext';
 import type { Service, ServiceCategory, Shop } from '../../types';
+import { PageLoading } from '../../components/ui/Loading';
 
 const CATS: ServiceCategory[] = ['GOVT', 'PRINTING', 'CARDS', 'OTHER'];
 
@@ -145,7 +146,7 @@ export default function ServicesPage() {
         <input className="form-input search-input" placeholder={t('services.search' as any)} value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
-      {loading ? <div className="page-loading"><div className="spinner spinner-lg" /></div> : (
+      {loading ? <PageLoading /> : (
         Object.entries(grouped).map(([cat, items]) => (
           <div key={cat} style={{ marginBottom: 24 }}>
             <div className="section-title">{cat}</div>

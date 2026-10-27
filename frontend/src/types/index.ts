@@ -85,8 +85,9 @@ export interface Log {
   action: AuditAction;
   tableName: string;
   recordId: string;
-  oldValue: unknown;
-  newValue: unknown;
+  /** Only present when the list was asked for details */
+  oldValue?: unknown;
+  newValue?: unknown;
   createdAt: string;
   user: { name: string; username: string };
 }

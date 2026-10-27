@@ -5,6 +5,7 @@ import { banksApi, expensesApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { istDate, money } from '../../components/sales/SalesLedger';
 import { BankAccount } from '../../types';
+import { PageLoading } from '../../components/ui/Loading';
 
 type Mode = 'deposit' | 'deduct' | 'misc' | 'set' | 'create';
 
@@ -49,7 +50,10 @@ function describe(log: NonNullable<BankAccount['logs']>[number]) {
 const when = (iso: string) => new Date(iso).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 export default function BanksPage() {
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, hasPermission } = useAuth();
+  // A custom role may only look (banks: view), move money (banks: change), or record a bank charge (all records: change)
+  const canMoveMoney = hasPermission('banks', 'write');
+  const canRecordExpense = hasPermission('allRecords', 'write');
   const [banks, setBanks] = useState<BankAccount[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -125,7 +129,7 @@ export default function BanksPage() {
 
       {error && <div className="alert alert-error mb-16" role="alert">{error}</div>}
 
-      {loading && banks.length === 0 ? <div className="page-loading"><div className="spinner spinner-lg" /></div> : (
+      {loading && banks.length === 0 ? <PageLoading /> : (
         <div className="bankbook">
           <section className="table-wrapper bank-list" aria-label="Accounts">
             <table>
@@ -167,9 +171,9 @@ export default function BanksPage() {
               </div>
 
               <div className="bank-actions">
-                <button className="btn btn-primary" onClick={() => open('deposit')}>Add money</button>
-                <button className="btn btn-ghost" onClick={() => open('deduct')}>Take out</button>
-                <button className="btn btn-ghost" onClick={() => open('misc')}>Bank charge</button>
+                {canMoveMoney && <button className="btn btn-primary" onClick={() => open('deposit')}>Add money</button>}
+                {canMoveMoney && <button className="btn btn-ghost" onClick={() => open('deduct')}>Take out</button>}
+                {canRecordExpense && <button className="btn btn-ghost" onClick={() => open('misc')}>Bank charge</button>}
                 {isSuperAdmin && !bank.isCash && <button className="btn btn-ghost" onClick={() => open('set')}>Correct balance</button>}
               </div>
 

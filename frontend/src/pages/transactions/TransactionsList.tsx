@@ -7,6 +7,7 @@ import { transactionsApi } from '../../api';
 import type { Transaction } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { PageLoading } from '../../components/ui/Loading';
 
 const METHODS = [['', 'All'], ['CASH', 'Cash'], ['ONLINE', 'Online'], ['OTHER', 'Other']] as const;
 
@@ -87,7 +88,7 @@ export default function TransactionsList() {
 
       {error && <div className="alert alert-error mb-16" role="alert">{error}</div>}
 
-      {loading ? <div className="page-loading"><div className="spinner spinner-lg" /></div> : transactions.length === 0 ? (
+      {loading ? <PageLoading /> : transactions.length === 0 ? (
         <div className="card empty-state">
           <div className="empty-state-icon"><ListOrdered size={28} /></div>
           <div className="empty-state-title">No sales {isToday ? 'yet today' : 'on this day'}</div>

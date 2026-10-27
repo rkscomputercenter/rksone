@@ -48,13 +48,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('rks_user', JSON.stringify(user));
         
         const shopAccess = user.shopAccess || ['SHOP_COMPUTER'];
-        let newActiveShop = state.activeShop;
-        if (!newActiveShop || !shopAccess.includes(newActiveShop)) {
-          newActiveShop = shopAccess[0] || 'SHOP_COMPUTER';
-          localStorage.setItem('rks_activeShop', newActiveShop);
-        }
-
-        setState(s => ({ ...s, user, isAuthenticated: true, isLoading: false, activeShop: newActiveShop }));
+        // Read the shop from the latest state: a refresh must not undo a shop the person just switched to
+        setState(s => {
+          let shop = s.activeShop;
+          if (!shop || !shopAccess.includes(shop)) {
+            shop = shopAccess[0] || 'SHOP_COMPUTER';
+            try { localStorage.setItem('rks_activeShop', shop); } catch { /* storage blocked */ }
+          }
+          return { ...s, user, isAuthenticated: true, isLoading: false, activeShop: shop };
+        });
       }
     } catch (err: any) {
       // Only "you are not signed in" signs the person out. A busy server (429), a crash (500)
@@ -103,15 +105,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const role = state.user?.role ?? null;
 
+  // Same rule as the server (which is the one that enforces it): "change" includes "view"
   const hasPermission = useCallback((module: string, action: 'read' | 'write' = 'read') => {
     if (role === 'SUPER_ADMIN' || role === 'ADMIN') return true;
     if (role === 'MANAGER' && ['services', 'expenseCategories'].includes(module)) return true;
     if (role === 'CUSTOM') {
       const perms = state.user?.customPermissions?.[module];
-      return !!(perms && (action === 'read' ? perms.read : perms.write));
+      return !!perms && (action === 'read' ? (perms.read || perms.write) : perms.write);
     }
     return false;
   }, [role, state.user?.customPermissions]);
+
+  // A super admin can change someone's role while they are signed in. Pick the change up when the
+  // app comes back to the front (at most once a minute) instead of waiting for the next sign-in.
+  useEffect(() => {
+    if (!state.isAuthenticated) return;
+    let last = Date.now();
+    const onShow = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - last < 60_000) return;
+      last = Date.now();
+      refreshUser();
+    };
+    document.addEventListener('visibilitychange', onShow);
+    window.addEventListener('focus', onShow);
+    return () => { document.removeEventListener('visibilitychange', onShow); window.removeEventListener('focus', onShow); };
+  }, [state.isAuthenticated, refreshUser]);
 
   const setActiveShop = useCallback((shop: Shop) => {
     if (state.user?.shopAccess.includes(shop)) {

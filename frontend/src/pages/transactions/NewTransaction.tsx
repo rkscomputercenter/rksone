@@ -7,6 +7,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import type { Service, ServiceCategory } from '../../types';
 import FloatingCalculator from '../../components/common/FloatingCalculator';
+import { PageLoading } from '../../components/ui/Loading';
 
 const CATS: ServiceCategory[] = ['GOVT', 'PRINTING', 'CARDS', 'OTHER'];
 const CAT_LABELS: Record<ServiceCategory, string> = { GOVT: 'Government', PRINTING: 'Printing', CARDS: 'Cards', OTHER: 'Other' };
@@ -184,7 +185,7 @@ export default function NewTransaction() {
                   }} />
               </div>
               {loading ? (
-                <div className="page-loading" style={{ height: 140 }}><div className="spinner" /></div>
+                <PageLoading height={140} />
               ) : (
                 <div className="service-list" role="listbox" aria-label="Services">
                   {grouped.length === 0 && (

@@ -6,6 +6,7 @@ import { expensesApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { istDate, money } from '../../components/sales/SalesLedger';
 import type { Expense } from '../../types';
+import { PageLoading } from '../../components/ui/Loading';
 
 const SHOP_LABEL: Record<string, string> = { SHOP_COMPUTER: 'Computer', SHOP_XEROX: 'Xerox' };
 
@@ -89,7 +90,7 @@ export default function ExpensesList() {
 
       {error && <div className="alert alert-error mb-16" role="alert">{error}</div>}
 
-      {loading ? <div className="page-loading"><div className="spinner spinner-lg" /></div> : expenses.length === 0 ? (
+      {loading ? <PageLoading /> : expenses.length === 0 ? (
         <div className="card empty-state">
           <div className="empty-state-icon"><Wallet size={28} /></div>
           <div className="empty-state-title">No expenses on this day</div>

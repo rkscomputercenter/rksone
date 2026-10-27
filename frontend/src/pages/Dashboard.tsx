@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, ListOrdered, Wallet, ReceiptText, BarChart3, Wrench, Users, FileClock, ChevronRight } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { useTokens } from '../hooks/useTokens';
 import { analyticsApi, banksApi, transactionsApi } from '../api';
 import type { BankAccount, TodaySummary, Transaction, MonthlyAnalytics } from '../types';
+import { PageLoading } from '../components/ui/Loading';
+
+// The charts library is the heaviest part of the app; staff who never see the chart never download it
+const MonthBars = lazy(() => import('../components/analytics/MonthBars'));
 
 const money = (n: number) => n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const PAY_LABEL: Record<string, string> = { CASH: 'Cash', ONLINE: 'Online', OTHER: 'Other', SHOP_XEROX: 'Xerox counter' };
@@ -17,11 +19,14 @@ function Figure({ value, loading }: { value: number; loading: boolean }) {
 }
 
 export default function Dashboard() {
-  const { user, hasPermission, isSuperAdmin, isAdmin } = useAuth();
+  const { user, hasPermission, isSuperAdmin } = useAuth();
+  // Each panel follows the permission that matters for it (admins hold all of them)
   const canViewAnalytics = hasPermission('analytics');
-  const canViewBanks = isAdmin || hasPermission('banks');
+  const canViewBanks = hasPermission('banks');
+  const canViewRecords = hasPermission('allRecords');
+  const canReviewExpenses = hasPermission('allRecords', 'write');
+  const showMoney = canViewAnalytics || canViewRecords;
   const { t } = useLanguage();
-  const tokens = useTokens();
   const navigate = useNavigate();
   const [summary, setSummary] = useState<TodaySummary | null>(null);
   const [monthly, setMonthly] = useState<MonthlyAnalytics | null>(null);
@@ -35,8 +40,8 @@ export default function Dashboard() {
       try {
         const [sumRes, txRes, monRes, bankRes] = await Promise.all([
           analyticsApi.todaySummary(),
-          isAdmin ? transactionsApi.list({ limit: 6 }) : Promise.resolve(null),
-          isAdmin ? analyticsApi.monthly() : Promise.resolve(null),
+          canViewRecords ? transactionsApi.list({ limit: 6 }) : Promise.resolve(null),
+          canViewAnalytics ? analyticsApi.monthly() : Promise.resolve(null),
           canViewBanks ? banksApi.list() : Promise.resolve(null),
         ]);
         setSummary(sumRes.data.data!);
@@ -50,7 +55,7 @@ export default function Dashboard() {
         setLoading(false);
       }
     })();
-  }, [isAdmin, canViewBanks]);
+  }, [canViewRecords, canViewAnalytics, canViewBanks]);
 
   const s = summary;
   const cash = s ? s.computerCash + s.xeroxCash + s.shopXeroxDirect : 0;
@@ -66,9 +71,9 @@ export default function Dashboard() {
     { icon: ReceiptText, label: t('dashboard.addExpense' as any), to: '/expenses/new', show: true },
     { icon: Wallet, label: t('nav.myExpenses' as any), to: '/expenses', show: true },
     { icon: BarChart3, label: t('nav.analytics' as any), to: '/analytics', show: canViewAnalytics },
-    { icon: Wrench, label: t('nav.services' as any), to: '/services', show: canViewAnalytics },
+    { icon: Wrench, label: t('nav.services' as any), to: '/services', show: hasPermission('services') },
     { icon: Users, label: t('nav.users' as any), to: '/users', show: isSuperAdmin },
-    { icon: FileClock, label: t('nav.auditLogs' as any), to: '/logs', show: isSuperAdmin },
+    { icon: FileClock, label: t('nav.auditLogs' as any), to: '/logs', show: hasPermission('salaryLogs') },
   ].filter(x => x.show);
 
   return (
@@ -95,7 +100,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {isAdmin ? (
+      {showMoney ? (
         <>
           <div className="dayline" aria-label="Today’s money">
             <div className="dayline-cell" style={{ '--cell-color': 'var(--cash)' } as React.CSSProperties}>
@@ -122,7 +127,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {s && s.pendingExpenseCount > 0 && (
+          {canReviewExpenses && s && s.pendingExpenseCount > 0 && (
             <Link to="/admin/expenses" className="alert alert-warning mb-24" style={{ alignItems: 'center' }}>
               <span style={{ flex: 1 }}>
                 <strong>{s.pendingExpenseCount} {s.pendingExpenseCount === 1 ? 'expense is' : 'expenses are'} waiting for approval.</strong>
@@ -132,36 +137,24 @@ export default function Dashboard() {
           )}
 
           <div className="two-col">
-            <section className="card" aria-labelledby="month-title">
+            {canViewAnalytics && <section className="card" aria-labelledby="month-title">
               <div className="card-header">
                 <h2 id="month-title" className="card-title">This month, day by day</h2>
                 {monthly && <span className="text-sm text-muted num">Net ₹{money(monthly.profit)}</span>}
               </div>
               <div style={{ height: 250, marginLeft: -12 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} barGap={1} barCategoryGap="22%">
-                    <CartesianGrid vertical={false} stroke={tokens.ruleSoft} />
-                    <XAxis dataKey="day" stroke={tokens.muted} fontSize={12} tickLine={false} axisLine={{ stroke: tokens.rule }} interval="preserveStartEnd" />
-                    <YAxis stroke={tokens.muted} fontSize={12} tickLine={false} axisLine={false} width={56}
-                      tickFormatter={(v: number) => v >= 1000 ? `${Math.round(v / 1000)}k` : String(v)} />
-                    <Tooltip cursor={{ fill: tokens.ruleSoft }}
-                      formatter={(v: number, name: string) => [`₹${money(v)}`, name]}
-                      labelFormatter={(d) => `Day ${d}`}
-                      contentStyle={{ background: tokens.sheet, border: `1px solid ${tokens.rule}`, borderRadius: 8, fontFamily: tokens.font, fontSize: 13 }}
-                      labelStyle={{ color: tokens.muted }} itemStyle={{ color: tokens.text }} />
-                    <Bar dataKey="Sales" fill={tokens.cash} radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="Expenses" fill={tokens.stamp} radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <Suspense fallback={<PageLoading height={250} />}>
+                  <MonthBars data={chartData} />
+                </Suspense>
               </div>
-            </section>
+            </section>}
 
-            <section className="card" aria-labelledby="recent-title">
+            {canViewRecords && <section className="card" aria-labelledby="recent-title">
               <div className="card-header">
                 <h2 id="recent-title" className="card-title">Latest sales</h2>
                 <Link to="/admin/transactions" className="btn-link text-sm">See all</Link>
               </div>
-              {loading ? <div className="page-loading" style={{ height: 160 }}><div className="spinner" /></div>
+              {loading ? <PageLoading height={160} />
                 : recentTx.length === 0 ? <div className="empty-state" style={{ padding: 24 }}>No sales recorded yet.</div>
                 : (
                   <div className="ledger">
@@ -178,7 +171,7 @@ export default function Dashboard() {
                     ))}
                   </div>
                 )}
-            </section>
+            </section>}
           </div>
 
           {canViewBanks && banks.length > 0 && (

@@ -4,6 +4,7 @@ import Layout from '../../components/layout/Layout';
 import { banksApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { BankAccount } from '../../types';
+import { PageLoading } from '../../components/ui/Loading';
 
 type ModalType = 'deposit' | 'adjust' | 'rename' | 'setBalance' | 'hardReset' | 'delete' | 'addBank' | null;
 
@@ -152,7 +153,7 @@ export default function BankConfig() {
       {success && <div className="alert alert-success mb-16" aria-live="polite">{success}</div>}
 
       {loading ? (
-        <div className="page-loading"><div className="spinner spinner-lg" /></div>
+        <PageLoading />
       ) : banks.length === 0 ? (
         <div className="card empty-state"><div className="empty-state-title">No accounts yet</div></div>
       ) : (

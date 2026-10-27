@@ -5,6 +5,7 @@ import { analyticsApi } from '../../api';
 import { DayLine, MonthChart, Split } from '../../components/analytics/Figures';
 import { CAT_LABEL, istDate, money } from '../../components/sales/SalesLedger';
 import type { DailyAnalytics, MonthlyAnalytics } from '../../types';
+import { PageLoading } from '../../components/ui/Loading';
 
 export default function AnalyticsPage() {
   const today = istDate();
@@ -54,7 +55,7 @@ export default function AnalyticsPage() {
       </div>
 
       {error && <div className="alert alert-error mb-16" role="alert">{error}</div>}
-      {loading && <div className="page-loading"><div className="spinner spinner-lg" /></div>}
+      {loading && <PageLoading />}
 
       {!loading && tab === 'daily' && daily && (
         <>

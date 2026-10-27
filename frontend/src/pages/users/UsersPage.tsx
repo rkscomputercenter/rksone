@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import Layout from '../../components/layout/Layout';
 import { usersApi, apiClient } from '../../api';
 import type { User, Role, Shop } from '../../types';
+import { PageLoading } from '../../components/ui/Loading';
 
 interface UserModalProps { user?: User; onClose: () => void; onSave: () => void; }
 
@@ -189,7 +190,7 @@ export default function UsersPage() {
       {error && <div className="alert alert-error mb-16" role="alert">{error}</div>}
       {notice && <div className="alert alert-success mb-16" aria-live="polite">{notice}</div>}
 
-      {loading ? <div className="page-loading"><div className="spinner spinner-lg" /></div> : (
+      {loading ? <PageLoading /> : (
         <div className="table-wrapper">
           <table>
             <thead><tr><th>Name</th><th>Role</th><th>Shops</th><th>Status</th><th className="amount">Sales entered</th><th className="amount"><span className="sr-only">Actions</span></th></tr></thead>

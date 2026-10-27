@@ -5,6 +5,7 @@ import { authApi } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { money } from '../components/sales/SalesLedger';
 import { APP_NAME, APP_VERSION } from '../config';
+import { PageLoading } from '../components/ui/Loading';
 
 const ROLE_LABEL: Record<string, string> = {
   USER: 'Staff', MANAGER: 'Manager', ADMIN: 'Admin', SUPER_ADMIN: 'Super admin', CUSTOM: 'Custom role',
@@ -49,7 +50,7 @@ export default function ProfilePage() {
     <Layout title="Profile">
       <div style={{ maxWidth: 880, margin: '0 auto' }}>
         {loading ? (
-          <div className="page-loading"><div className="spinner spinner-lg" /></div>
+          <PageLoading />
         ) : (
           <>
             <div className="page-header" style={{ alignItems: 'center' }}>

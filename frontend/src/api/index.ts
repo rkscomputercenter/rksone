@@ -15,6 +15,8 @@ export const authApi = {
 // ── Users ───────────────────────────────────────────────────────
 export const usersApi = {
   list: () => api.get<ApiResponse<User[]>>('/users'),
+  /** Names only, for "by staff member" filters; open to anyone who may look at records, logs or analytics */
+  directory: () => api.get<ApiResponse<Array<{ id: string; name: string; username: string; isActive: boolean }>>>('/users/directory'),
   get: (id: string) => api.get<ApiResponse<User>>(`/users/${id}`),
   create: (data: { name: string; username: string; password: string; role: string; isActive?: boolean; customRoleId?: string; shopAccess?: Shop[] }) =>
     api.post<ApiResponse<User>>('/users', data),
@@ -89,7 +91,8 @@ export const analyticsApi = {
 
 // ── Logs ──────────────────────────────────────────────────────────
 export const logsApi = {
-  list: (params?: { page?: number; limit?: number; userId?: string; action?: string; tableName?: string; date?: string }) =>
+  /** `details: true` also returns each entry's before/after values (large; leave it off for plain lists) */
+  list: (params?: { page?: number; limit?: number; userId?: string; action?: string; tableName?: string; date?: string; details?: boolean }) =>
     api.get<ApiResponse<Log[]>>('/logs', { params }),
   cleanup: () => api.delete<ApiResponse<{ deletedCount: number }>>('/logs/cleanup'),
 };

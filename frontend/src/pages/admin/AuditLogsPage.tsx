@@ -1,124 +1,136 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../../components/layout/Layout';
 import { logsApi, usersApi } from '../../api';
-import type { Log, User } from '../../types';
+import { PageLoading } from '../../components/ui/Loading';
+import Pager from '../../components/ui/Pager';
+import { istDate, money } from '../../components/sales/SalesLedger';
+import type { Log } from '../../types';
+
+const LIMIT = 30;
+
+const ACTION: Record<string, { label: string; cls: string }> = {
+  CREATE: { label: 'Added', cls: 'badge-green' },
+  UPDATE: { label: 'Changed', cls: 'badge-yellow' },
+  DELETE: { label: 'Deleted', cls: 'badge-red' },
+};
+
+const time = (iso: string) => new Date(iso).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const rupees = (v: unknown) => `₹${money(Number(v) || 0)}`;
+
+/** What happened to a sale, in a sentence or two. */
+function describe(log: Log): React.ReactNode {
+  const before = (log.oldValue ?? null) as Record<string, any> | null;
+  const after = (log.newValue ?? null) as Record<string, any> | null;
+  if (log.action === 'DELETE' && before) return <>Deleted a sale worth <b>{rupees(before.totalPrice)}</b>.</>;
+  if (log.action === 'CREATE' && after) return <>Added a sale worth <b>{rupees(after.totalPrice)}</b>, quantity {after.quantity}.</>;
+  if (log.action === 'UPDATE' && before && after) {
+    const parts: string[] = [];
+    if (before.quantity !== after.quantity) parts.push(`quantity ${before.quantity} to ${after.quantity}`);
+    if (before.totalPrice !== after.totalPrice) parts.push(`total ${rupees(before.totalPrice)} to ${rupees(after.totalPrice)}`);
+    if ((before.notes ?? '') !== (after.notes ?? '')) parts.push(`note “${before.notes || 'none'}” to “${after.notes || 'none'}”`);
+    return parts.length ? <>Changed {parts.join(', ')}.</> : 'Saved without a visible change.';
+  }
+  return '';
+}
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState<Log[]>([]);
   const [loading, setLoading] = useState(true);
-  const [users, setUsers] = useState<User[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [users, setUsers] = useState<Array<{ id: string; name: string; username: string }>>([]);
+  const [error, setError] = useState('');
 
   // Filters
-  const [date, setDate] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }));
+  const [date, setDate] = useState(istDate());
   const [userId, setUserId] = useState('');
   const [action, setAction] = useState('UPDATE,DELETE');
 
-  const load = () => {
-    setLoading(true);
-    logsApi.list({ tableName: 'transactions', date, ...(userId && { userId }), ...(action && { action }) })
-      .then(r => setLogs(r.data.data ?? []))
-      .finally(() => setLoading(false));
-  };
-
   useEffect(() => {
-    usersApi.list().then(r => setUsers(r.data.data ?? []));
+    usersApi.directory().then(r => setUsers(r.data.data ?? [])).catch(() => {});
   }, []);
 
   useEffect(() => {
-    load();
-  }, [date, userId, action]);
+    let current = true;
+    setLoading(true); setError('');
+    logsApi.list({ tableName: 'transactions', date, page, limit: LIMIT, details: true, ...(userId && { userId }), ...(action && { action }) })
+      .then(r => { if (current) { setLogs(r.data.data ?? []); setTotal(r.data.meta?.total ?? 0); } })
+      .catch(() => { if (current) setError('The log didn’t load. Check the connection and try again.'); })
+      .finally(() => { if (current) setLoading(false); });
+    return () => { current = false; };
+  }, [date, userId, action, page]);
 
   return (
-    <Layout title="Audit Logs">
+    <Layout title="Transaction log">
       <div className="page-header">
         <div>
-          <div className="page-header-title">Audit Logs</div>
-          <div className="page-header-sub">Track transaction updates and deletions</div>
-        </div>
-        <div className="page-actions" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <input type="date" className="form-input" style={{ width: 160 }} value={date} onChange={e => setDate(e.target.value)} max={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })} />
-          
-          <select className="form-select" value={userId} onChange={e => setUserId(e.target.value)} style={{ minWidth: 150 }}>
-            <option value="">All Users</option>
-            {users.map(u => (
-              <option key={u.id} value={u.id}>{u.name} ({u.username})</option>
-            ))}
-          </select>
-
-          <select className="form-select" value={action} onChange={e => setAction(e.target.value)} style={{ minWidth: 150 }}>
-            <option value="UPDATE,DELETE">Updates & Deletes</option>
-            <option value="UPDATE">Updates Only</option>
-            <option value="DELETE">Deletes Only</option>
-            <option value="CREATE">Creates</option>
-          </select>
+          <div className="page-header-title">Transaction log</div>
+          <div className="page-header-sub">Sales that were added, changed or deleted on this day.</div>
         </div>
       </div>
 
-      <div className="card">
-        {loading ? (
-          <div className="page-loading"><div className="spinner" /></div>
-        ) : logs.length === 0 ? (
-          <div className="empty-state">
-            
-            <div className="empty-state-title">No logs found</div>
-            <div className="empty-state-sub">No matching audit logs for the selected criteria.</div>
-          </div>
-        ) : (
-          <div className="table-responsive">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  <th>Action</th>
-                  <th>User</th>
-                  <th>Record ID</th>
-                  <th>Changes / Details</th>
-                </tr>
-              </thead>
+      <div className="filters">
+        <input type="date" aria-label="Date" className="form-input" style={{ width: 160 }} value={date} max={istDate()}
+          onChange={e => { setDate(e.target.value || istDate()); setPage(1); }} />
+        <select aria-label="Who" className="form-select" style={{ minWidth: 150 }} value={userId} onChange={e => { setUserId(e.target.value); setPage(1); }}>
+          <option value="">Anyone</option>
+          {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+        </select>
+        <select aria-label="What happened" className="form-select filters-wide" style={{ minWidth: 150 }} value={action} onChange={e => { setAction(e.target.value); setPage(1); }}>
+          <option value="UPDATE,DELETE">Changes and deletions</option>
+          <option value="UPDATE">Changes only</option>
+          <option value="DELETE">Deletions only</option>
+          <option value="CREATE">Additions</option>
+        </select>
+      </div>
+
+      {error && <div className="alert alert-error mb-16" role="alert">{error}</div>}
+
+      {loading ? <PageLoading /> : logs.length === 0 ? (
+        <div className="card empty-state">
+          <div className="empty-state-title">Nothing on this day</div>
+          <div className="empty-state-sub">No sales were {action === 'CREATE' ? 'added' : 'changed or deleted'} that match.</div>
+        </div>
+      ) : (
+        <>
+          <div className="table-wrapper hide-mobile">
+            <table>
+              <thead><tr><th>Time</th><th>Who</th><th>What happened</th><th>Details</th></tr></thead>
               <tbody>
-                {logs.map(log => {
-                  const oldData = log.oldValue as any;
-                  const newData = log.newValue as any;
-                  
+                {logs.map(l => {
+                  const a = ACTION[l.action];
                   return (
-                    <tr key={log.id}>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        {new Date(log.createdAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                      </td>
-                      <td>
-                        <span className={`badge ${log.action === 'DELETE' ? 'badge-red' : log.action === 'UPDATE' ? 'badge-blue' : 'badge-green'}`}>
-                          {log.action}
-                        </span>
-                      </td>
-                      <td style={{ fontWeight: 500 }}>{log.user.name}</td>
-                      <td style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text-muted)' }}>...{log.recordId.slice(-6)}</td>
-                      <td>
-                        {log.action === 'DELETE' && oldData && (
-                          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                            Deleted transaction worth <b>₹{oldData.totalPrice}</b> (Service ID: {oldData.serviceId})
-                          </div>
-                        )}
-                        {log.action === 'UPDATE' && oldData && newData && (
-                          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                            {oldData.quantity !== newData.quantity && <div>Qty: {oldData.quantity} → {newData.quantity}</div>}
-                            {oldData.totalPrice !== newData.totalPrice && <div>Total: ₹{oldData.totalPrice} → ₹{newData.totalPrice}</div>}
-                            {oldData.notes !== newData.notes && <div>Notes: {oldData.notes || 'None'} → {newData.notes || 'None'}</div>}
-                          </div>
-                        )}
-                        {log.action === 'CREATE' && newData && (
-                          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                            Created worth <b>₹{newData.totalPrice}</b> (Qty: {newData.quantity})
-                          </div>
-                        )}
-                      </td>
+                    <tr key={l.id}>
+                      <td className="text-muted" style={{ whiteSpace: 'nowrap' }}>{time(l.createdAt)}</td>
+                      <td style={{ fontWeight: 600 }}>{l.user?.name}</td>
+                      <td><span className={`badge ${a?.cls ?? ''}`}>{a?.label ?? l.action}</span></td>
+                      <td className="text-sm">{describe(l)} <span className="text-xs text-muted">…{l.recordId.slice(-6)}</span></td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+
+          <div className="rec-list hide-desktop">
+            {logs.map(l => {
+              const a = ACTION[l.action];
+              return (
+                <article className="rec" key={l.id}>
+                  <div className="rec-top">
+                    <span className="rec-title">{l.user?.name}</span>
+                    <span className={`badge ${a?.cls ?? ''}`}>{a?.label ?? l.action}</span>
+                  </div>
+                  <div className="rec-body">{describe(l)}</div>
+                  <div className="rec-meta"><span>{time(l.createdAt)}</span><span>…{l.recordId.slice(-6)}</span></div>
+                </article>
+              );
+            })}
+          </div>
+
+          <Pager page={page} pages={Math.ceil(total / LIMIT)} onPage={setPage} />
+        </>
+      )}
     </Layout>
   );
 }

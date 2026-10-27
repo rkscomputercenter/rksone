@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useMemo, useRef } from 'react';
+import { PageLoading } from '../ui/Loading';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ShellContext } from './shellContext';
 import Sidebar from './Sidebar';
@@ -235,7 +236,10 @@ export default function AppShell({ children, title: fixedTitle }: AppShellProps)
           <div className="page-inner">
             <ShellContext.Provider value={shell}>
               {/* keyed by shop: switching shop reloads the page data, not the whole app */}
-              {children ?? <Outlet key={activeShop ?? 'none'} />}
+              {/* the frame stays; only this area shows a placeholder while a page's code is fetched */}
+              <Suspense fallback={<PageLoading />}>
+                {children ?? <Outlet key={activeShop ?? 'none'} />}
+              </Suspense>
             </ShellContext.Provider>
           </div>
         </main>

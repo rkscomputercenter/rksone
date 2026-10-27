@@ -1,65 +1,61 @@
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './routes/ProtectedRoute';
 import AppShell from './components/layout/AppShell';
-
-import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/Login';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import Dashboard from './pages/Dashboard';
-import NewTransaction from './pages/transactions/NewTransaction';
-import TransactionsList from './pages/transactions/TransactionsList';
-import ExpensesList from './pages/expenses/ExpensesList';
-import NewExpense from './pages/expenses/NewExpense';
-import BillingPage from './pages/BillingPage';
-import TermsPage from './pages/TermsPage';
-import DeveloperPage from './pages/DeveloperPage';
-import ServicesPage from './pages/services/ServicesPage';
-import AnalyticsPage from './pages/analytics/AnalyticsPage';
-import UsersPage from './pages/users/UsersPage';
-import LogsPage from './pages/logs/LogsPage';
-import ProfilePage from './pages/Profile';
-import AdminTransactions from './pages/admin/AdminTransactions';
-import AdminExpenses from './pages/admin/AdminExpenses';
-import AutomaticTransactionsPage from './pages/admin/AutomaticTransactionsPage';
-import UserPerformancePage from './pages/admin/UserPerformancePage';
-import AuditLogsPage from './pages/admin/AuditLogsPage';
-import BillLogsPage from './pages/logs/BillLogsPage';
-import BanksPage from './pages/banks/BanksPage';
-import BankConfig from './pages/admin/BankConfig';
-import ServerManagement from './pages/admin/ServerManagement';
-import ManageExpenseCategories from './pages/admin/ManageExpenseCategories';
-import StorageManagement from './pages/admin/StorageManagement';
-import DataExports from './pages/admin/DataExports';
-import MaintenancePage from './pages/Maintenance';
-
-import IncomeManagementPage from './pages/admin/IncomeManagementPage';
-import RenderMaintenancePage from './pages/admin/RenderMaintenancePage';
-import RoleManagementPage from './pages/admin/RoleManagementPage';
-import SystemAlertsPage from './pages/admin/SystemAlertsPage';
-import PasswordRequestsPage from './pages/admin/PasswordRequestsPage';
-import RestrictedAccessPage from './pages/RestrictedAccessPage';
-import DownloadAppPage from './pages/DownloadAppPage';
 import AppUpdater from './components/AppUpdater';
 import { RksOneLogo } from './components/brand/Logo';
+import { BootLoading } from './components/ui/Loading';
+
+// Every page except sign-in is fetched when first opened, so the first screen does not wait for
+// the charts, the logs or the admin pages. (In the Android app the files are on the phone.)
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const NewTransaction = lazy(() => import('./pages/transactions/NewTransaction'));
+const TransactionsList = lazy(() => import('./pages/transactions/TransactionsList'));
+const ExpensesList = lazy(() => import('./pages/expenses/ExpensesList'));
+const NewExpense = lazy(() => import('./pages/expenses/NewExpense'));
+const BillingPage = lazy(() => import('./pages/BillingPage'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
+const DeveloperPage = lazy(() => import('./pages/DeveloperPage'));
+const ServicesPage = lazy(() => import('./pages/services/ServicesPage'));
+const AnalyticsPage = lazy(() => import('./pages/analytics/AnalyticsPage'));
+const UsersPage = lazy(() => import('./pages/users/UsersPage'));
+const LogsPage = lazy(() => import('./pages/logs/LogsPage'));
+const ProfilePage = lazy(() => import('./pages/Profile'));
+const AdminTransactions = lazy(() => import('./pages/admin/AdminTransactions'));
+const AdminExpenses = lazy(() => import('./pages/admin/AdminExpenses'));
+const AutomaticTransactionsPage = lazy(() => import('./pages/admin/AutomaticTransactionsPage'));
+const UserPerformancePage = lazy(() => import('./pages/admin/UserPerformancePage'));
+const AuditLogsPage = lazy(() => import('./pages/admin/AuditLogsPage'));
+const BillLogsPage = lazy(() => import('./pages/logs/BillLogsPage'));
+const BanksPage = lazy(() => import('./pages/banks/BanksPage'));
+const BankConfig = lazy(() => import('./pages/admin/BankConfig'));
+const ServerManagement = lazy(() => import('./pages/admin/ServerManagement'));
+const ManageExpenseCategories = lazy(() => import('./pages/admin/ManageExpenseCategories'));
+const StorageManagement = lazy(() => import('./pages/admin/StorageManagement'));
+const DataExports = lazy(() => import('./pages/admin/DataExports'));
+const MaintenancePage = lazy(() => import('./pages/Maintenance'));
+const IncomeManagementPage = lazy(() => import('./pages/admin/IncomeManagementPage'));
+const RenderMaintenancePage = lazy(() => import('./pages/admin/RenderMaintenancePage'));
+const RoleManagementPage = lazy(() => import('./pages/admin/RoleManagementPage'));
+const SystemAlertsPage = lazy(() => import('./pages/admin/SystemAlertsPage'));
+const PasswordRequestsPage = lazy(() => import('./pages/admin/PasswordRequestsPage'));
+const RestrictedAccessPage = lazy(() => import('./pages/RestrictedAccessPage'));
+const DownloadAppPage = lazy(() => import('./pages/DownloadAppPage'));
 
 function RootRedirect() {
   const { isAuthenticated, isLoading } = useAuth();
-  
-  if (isLoading) {
-    return (
-      <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)', alignItems: 'center', justifyContent: 'center' }}>
-        <div className="spinner spinner-lg" />
-      </div>
-    );
-  }
-  
+
+  if (isLoading) return <BootLoading />;
+
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
-  
+
   return <Navigate to={Capacitor.isNativePlatform() ? "/login" : "/open"} replace />;
 }
 
@@ -67,12 +63,12 @@ function CustomSplashScreen({ onComplete }: { onComplete: () => void }) {
   const [fading, setFading] = useState(false);
 
   useEffect(() => {
-    // Show splash for 1.5 seconds, then start fading out
+    // Show the logo briefly, then fade out
     const timer = setTimeout(() => {
       setFading(true);
-      // Wait 0.5s for the fade animation to complete before unmounting
-      setTimeout(onComplete, 500);
-    }, 1500);
+      // Wait for the fade animation to complete before unmounting
+      setTimeout(onComplete, 350);
+    }, 900);
     return () => clearTimeout(timer);
   }, [onComplete]);
 
@@ -81,7 +77,7 @@ function CustomSplashScreen({ onComplete }: { onComplete: () => void }) {
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
       background: 'radial-gradient(120% 80% at 60% 35%, #1A1546 0%, #0B0A1F 55%, #07060F 100%)', zIndex: 99999,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      opacity: fading ? 0 : 1, transition: 'opacity 0.5s ease-in-out',
+      opacity: fading ? 0 : 1, transition: 'opacity 0.35s ease-in-out',
       pointerEvents: 'none'
     }}>
       <style>{`
@@ -113,6 +109,7 @@ export default function App() {
       <AuthProvider>
         <AppUpdater />
         <BrowserRouter>
+          <Suspense fallback={<BootLoading />}>
           <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -135,11 +132,11 @@ export default function App() {
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
 
-          {/* Admin+ */ /* Custom roles can access these depending on permissions */}
+          {/* Managers and admins; a custom role gets in when its permission for that module allows */}
           <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN', 'SUPER_ADMIN']} permissionKey="services" />}>
             <Route path="/services" element={<ServicesPage />} />
           </Route>
-          
+
           <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN', 'SUPER_ADMIN']} permissionKey="expenseCategories" />}>
             <Route path="/admin/expense-categories" element={<ManageExpenseCategories />} />
           </Route>
@@ -158,13 +155,17 @@ export default function App() {
           <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} permissionKey="salaryLogs" />}>
             <Route path="/logs" element={<LogsPage />} />
             <Route path="/admin/bill-logs" element={<BillLogsPage />} />
-
           </Route>
 
           <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} permissionKey="analytics" />}>
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/admin/exports" element={<DataExports />} />
             <Route path="/admin/user-performance" element={<UserPerformancePage />} />
+          </Route>
+
+          {/* Admins and super admins only (no custom-role permission covers these) */}
+          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} />}>
+            <Route path="/admin/auto-transactions" element={<AutomaticTransactionsPage />} />
           </Route>
 
           {/* Super Admin only */}
@@ -174,7 +175,6 @@ export default function App() {
             <Route path="/admin/system" element={<ServerManagement />} />
             <Route path="/admin/render" element={<RenderMaintenancePage />} />
             <Route path="/admin/storage" element={<StorageManagement />} />
-            <Route path="/admin/auto-transactions" element={<AutomaticTransactionsPage />} />
             <Route path="/admin/income-management" element={<IncomeManagementPage />} />
             <Route path="/admin/alerts" element={<SystemAlertsPage />} />
             <Route path="/admin/password-requests" element={<PasswordRequestsPage />} />
@@ -186,8 +186,9 @@ export default function App() {
           <Route path="/maintenance" element={<MaintenancePage />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+          </Suspense>
+        </BrowserRouter>
+      </AuthProvider>
     </div>
     </>
   );

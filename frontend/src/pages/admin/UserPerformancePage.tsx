@@ -4,11 +4,12 @@ import FloatingCalculator from '../../components/common/FloatingCalculator';
 import { DayLine, MonthChart, Split } from '../../components/analytics/Figures';
 import { istDate } from '../../components/sales/SalesLedger';
 import { analyticsApi, usersApi } from '../../api';
-import type { DailyAnalytics, MonthlyAnalytics, User } from '../../types';
+import type { DailyAnalytics, MonthlyAnalytics } from '../../types';
+import { PageLoading } from '../../components/ui/Loading';
 
 export default function UserPerformancePage() {
   const today = istDate();
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<Array<{ id: string; name: string; username: string; isActive: boolean }>>([]);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [tab, setTab] = useState<'daily' | 'monthly'>('daily');
   const [date, setDate] = useState(today);
@@ -19,7 +20,7 @@ export default function UserPerformancePage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    usersApi.list().then(res => {
+    usersApi.directory().then(res => {
       const list = (res.data.data || []).filter(u => u.username !== 'SYSTEM_AUTO');
       setUsers(list);
       if (list.length > 0) setSelectedUserId(list[0].id);
@@ -63,7 +64,7 @@ export default function UserPerformancePage() {
       </div>
 
       {error && <div className="alert alert-error mb-16" role="alert">{error}</div>}
-      {loading && <div className="page-loading"><div className="spinner spinner-lg" /></div>}
+      {loading && <PageLoading />}
 
       {!loading && person && tab === 'daily' && daily && (
         <>

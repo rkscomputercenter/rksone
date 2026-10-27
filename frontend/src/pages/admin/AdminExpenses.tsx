@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { istDate, money } from '../../components/sales/SalesLedger';
 import { statusBadge } from '../expenses/ExpensesList';
 import type { BankAccount, Expense } from '../../types';
+import { PageLoading } from '../../components/ui/Loading';
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
 
@@ -57,8 +58,8 @@ function EditModal({ expense, onClose, onSaved }: { expense: Expense; onClose: (
 }
 
 /** One waiting expense: choose the account it was paid from, then approve, or reject. */
-function ReviewRow({ expense, banks, onDone, onError }: {
-  expense: Expense; banks: BankAccount[]; onDone: () => void; onError: (m: string) => void;
+function ReviewRow({ expense, banks, canReview, onDone, onError }: {
+  expense: Expense; banks: BankAccount[]; canReview: boolean; onDone: () => void; onError: (m: string) => void;
 }) {
   const [bankId, setBankId] = useState('');
   const [busy, setBusy] = useState<'' | 'APPROVED' | 'REJECTED'>('');
@@ -81,23 +82,29 @@ function ReviewRow({ expense, banks, onDone, onError }: {
         </div>
         <div className="text-sm text-muted">{expense.user.name}, {time(expense.createdAt)}{expense.note ? `. ${expense.note}` : ''}</div>
       </div>
-      <div className="review-how">
-        <select aria-label="Paid from" className="form-select" value={bankId} onChange={e => setBankId(e.target.value)}>
-          <option value="">Paid from…</option>
-          {banks.map(b => <option key={b.id} value={b.id}>{b.name}{b.isCash ? '' : `, ₹${money(Number(b.balance))}`}</option>)}
-        </select>
-        <button className="btn btn-success" disabled={!bankId || short || !!busy} onClick={() => act('APPROVED')}>
-          <Check size={16} /> {busy === 'APPROVED' ? 'Approving' : 'Approve'}
-        </button>
-        <button className="btn btn-ghost" disabled={!!busy} onClick={() => act('REJECTED')}>{busy === 'REJECTED' ? 'Rejecting' : 'Reject'}</button>
-      </div>
+      {canReview ? (
+        <div className="review-how">
+          <select aria-label="Paid from" className="form-select" value={bankId} onChange={e => setBankId(e.target.value)}>
+            <option value="">Paid from…</option>
+            {banks.map(b => <option key={b.id} value={b.id}>{b.name}{b.isCash ? '' : `, ₹${money(Number(b.balance))}`}</option>)}
+          </select>
+          <button className="btn btn-success" disabled={!bankId || short || !!busy} onClick={() => act('APPROVED')}>
+            <Check size={16} /> {busy === 'APPROVED' ? 'Approving' : 'Approve'}
+          </button>
+          <button className="btn btn-ghost" disabled={!!busy} onClick={() => act('REJECTED')}>{busy === 'REJECTED' ? 'Rejecting' : 'Reject'}</button>
+        </div>
+      ) : (
+        <span className="badge badge-yellow">Waiting</span>
+      )}
       {short && <div className="form-error" style={{ gridColumn: '1 / -1' }}>{bank!.name} has only ₹{money(Number(bank!.balance))}.</div>}
     </div>
   );
 }
 
 export default function AdminExpenses() {
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, hasPermission } = useAuth();
+  // A custom role that may only view all records sees the list but cannot approve or reject
+  const canReview = hasPermission('allRecords', 'write');
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [banks, setBanks] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,10 +116,11 @@ export default function AdminExpenses() {
 
   const load = () => {
     setLoading(true);
-    Promise.all([expensesApi.list({ date }), banksApi.list()])
+    // The account list is only needed to approve; a viewer's page must not fail because of it
+    Promise.all([expensesApi.list({ date }), canReview ? banksApi.list() : Promise.resolve(null)])
       .then(([expRes, bankRes]) => {
         setExpenses(expRes.data.data ?? []);
-        setBanks(bankRes.data.data ?? []);
+        setBanks(bankRes?.data.data ?? []);
       })
       .catch(() => setError('The expenses didn’t load. Check the connection and try again.'))
       .finally(() => setLoading(false));
@@ -145,7 +153,7 @@ export default function AdminExpenses() {
     }
     return (
       <span className="flex gap-8" style={{ justifyContent: 'flex-end' }}>
-        {e.status === 'APPROVED' && <button className="btn btn-ghost btn-sm" onClick={() => setConfirm({ id: e.id, kind: 'reject' })}>Reject</button>}
+        {canReview && e.status === 'APPROVED' && <button className="btn btn-ghost btn-sm" onClick={() => setConfirm({ id: e.id, kind: 'reject' })}>Reject</button>}
         {isSuperAdmin && <button className="btn btn-ghost btn-sm" onClick={() => setEditing(e)}>Edit</button>}
         {isSuperAdmin && <button className="btn btn-ghost btn-sm" onClick={() => setConfirm({ id: e.id, kind: 'delete' })}>Delete</button>}
       </span>
@@ -166,7 +174,7 @@ export default function AdminExpenses() {
 
       {error && <div className="alert alert-error mb-16" role="alert">{error}</div>}
 
-      {loading ? <div className="page-loading"><div className="spinner spinner-lg" /></div> : (
+      {loading ? <PageLoading /> : (
         <>
           <section className="mb-24" aria-labelledby="waiting-title">
             <h2 id="waiting-title" className="section-title">
@@ -177,7 +185,7 @@ export default function AdminExpenses() {
             ) : (
               <div className="card" style={{ padding: 0 }}>
                 {waiting.map(e => (
-                  <ReviewRow key={e.id} expense={e} banks={banks} onDone={load} onError={setError} />
+                  <ReviewRow key={e.id} expense={e} banks={banks} canReview={canReview} onDone={load} onError={setError} />
                 ))}
               </div>
             )}
