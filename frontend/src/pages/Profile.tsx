@@ -56,7 +56,7 @@ export default function ProfilePage() {
                 <div className="avatar" style={{ width: 56, height: 56, fontSize: 22 }} aria-hidden="true">{user?.name?.[0]?.toUpperCase()}</div>
                 <div>
                   <div className="page-header-title">{user?.name}</div>
-                  <div className="page-header-sub">{roleLabel(role, user?.customRoleName)}, signs in as {user?.username}{shops ? `. ${shops} shop` : ''}</div>
+                  <div className="page-header-sub">{roleLabel(role, profile?.customRoleName ?? user?.customRoleName)}, signs in as {user?.username}{shops ? `. ${shops} shop` : ''}</div>
                 </div>
               </div>
               <button className="btn btn-ghost" onClick={() => logout()}><LogOut size={16} /> Sign out</button>

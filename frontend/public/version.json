@@ -1,6 +1,6 @@
 {
-  "version": "1.0.45",
+  "version": "1.0.46",
   "minVersion": "1.0.45",
   "apkUrl": "https://github.com/rkscomputercenter/rksone/releases/latest/download/RKS_ONE.apk",
-  "releaseNotes": "Custom-role accounts now see the pages they were given, and the menu shows their role name."
+  "releaseNotes": "The profile page now shows the name of your custom role."
 }

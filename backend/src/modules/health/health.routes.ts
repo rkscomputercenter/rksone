@@ -18,6 +18,8 @@ router.get('/', async (_req: Request, res: Response) => {
         localTime: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
         database: 'connected',
         environment: process.env.NODE_ENV,
+        // Which commit is running (Render sets this), so a deploy can be checked from outside
+        build: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null,
       },
     });
   } catch {
