@@ -21,9 +21,9 @@ router.post('/sessions/:userId/message', authenticate, requireRole(['SUPER_ADMIN
 router.get('/storage', authenticate, requireRole(['SUPER_ADMIN']), controller.getStorageStats);
 router.post('/cleanup', authenticate, requireRole(['SUPER_ADMIN']), controller.manualCleanup);
 
-// Exports — Admin & Super Admin
-router.get('/exports', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), controller.listExports);
-router.get('/exports/:id/download', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), controller.downloadExport);
+// Exports — Admin & Super Admin, and a custom role that may view analytics & exports
+router.get('/exports', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN'], 'analytics', 'read'), controller.listExports);
+router.get('/exports/:id/download', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN'], 'analytics', 'read'), controller.downloadExport);
 
 // Automatic Transactions — Admin & Super Admin
 router.get('/auto-transactions', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), controller.getAutoTransactions);

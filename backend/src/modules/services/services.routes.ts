@@ -8,9 +8,9 @@ const router = Router();
 // GET /api/services — any authenticated user
 router.get('/', authenticate, getAllServices);
 
-// POST/PATCH — ADMIN+
-router.post('/', authenticate, requireRole(['MANAGER', 'ADMIN', 'SUPER_ADMIN']), validate(createServiceSchema), createService);
-router.patch('/:id', authenticate, requireRole(['MANAGER', 'ADMIN', 'SUPER_ADMIN']), validate(updateServiceSchema), updateService);
+// POST/PATCH — managers and admins, and a custom role that may change services
+router.post('/', authenticate, requireRole(['MANAGER', 'ADMIN', 'SUPER_ADMIN'], 'services', 'write'), validate(createServiceSchema), createService);
+router.patch('/:id', authenticate, requireRole(['MANAGER', 'ADMIN', 'SUPER_ADMIN'], 'services', 'write'), validate(updateServiceSchema), updateService);
 
 // DELETE — SUPER_ADMIN only
 router.delete('/:id', authenticate, requireRole(['SUPER_ADMIN']), deleteService);

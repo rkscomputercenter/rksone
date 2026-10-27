@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { writeAuditLog } from '../../utils/auditLog';
-import { isAdminOrAbove } from '../../middleware/auth';
+import { hasPermission, isAdminOrAbove } from '../../middleware/auth';
 import { isToday, getISTDayBounds, toISTDateString } from '../../utils/time';
 import { canAccessShop, getShopFilter } from '../../utils/shop';
 import {
@@ -89,7 +89,8 @@ export async function getExpenses(req: Request, res: Response, next: NextFunctio
 export async function createExpense(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { amount, category, note, bankId, shop = 'SHOP_COMPUTER' } = req.body;
-    const isAdmin = isAdminOrAbove(req.user!, 'allRecords');
+    // Only someone who may change records has expenses approved at once; viewing all records is not enough
+    const isAdmin = hasPermission(req.user!, 'allRecords', 'write');
     const actorId = req.user!.userId;
 
     if (!canAccessShop(req.user!, shop)) {
@@ -157,7 +158,7 @@ export async function updateExpense(req: Request, res: Response, next: NextFunct
       return;
     }
 
-    const isAdmin = isAdminOrAbove(req.user!, 'allRecords');
+    const isAdmin = hasPermission(req.user!, 'allRecords', 'write');
     const oldAmount = Number(existing.amount);
     const newAmount = amount ?? oldAmount;
     const deductedBankId = existing.status === 'APPROVED' ? existing.bankId : null;

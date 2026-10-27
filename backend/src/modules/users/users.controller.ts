@@ -14,7 +14,7 @@ export async function getAllUsers(req: Request, res: Response, next: NextFunctio
     const users = await prisma.user.findMany({
       where,
       select: {
-        id: true, name: true, username: true, role: true,
+        id: true, name: true, username: true, role: true, customRoleId: true,
         isActive: true, isSuspended: true, createdAt: true, updatedAt: true, shopAccess: true,
         _count: { select: { transactions: true } },
       },
@@ -27,6 +27,32 @@ export async function getAllUsers(req: Request, res: Response, next: NextFunctio
     });
     sendSuccess(res, users);
   } catch (err) { next(err); }
+}
+
+/** Id, name, username and whether the account is active, for the "by staff member" filters. Nothing else. */
+export async function getUserDirectory(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const users = await prisma.user.findMany({
+      select: { id: true, name: true, username: true, isActive: true },
+      orderBy: { name: 'asc' },
+    });
+    sendSuccess(res, users);
+  } catch (err) { next(err); }
+}
+
+/**
+ * A custom-role account must point at a role that exists, and every non-admin account needs at least one shop;
+ * otherwise the person can sign in and do nothing. Returns the message to refuse with, or null when fine.
+ */
+async function accountProblem(role: string, customRoleId: unknown, shopAccess: unknown): Promise<string | null> {
+  if (role === 'CUSTOM') {
+    if (typeof customRoleId !== 'string' || !customRoleId) return 'Choose which custom role this person has.';
+    if (!(await prisma.customRole.findUnique({ where: { id: customRoleId }, select: { id: true } }))) return 'That custom role no longer exists.';
+  }
+  if (role !== 'ADMIN' && role !== 'SUPER_ADMIN' && Array.isArray(shopAccess) && shopAccess.length === 0) {
+    return 'Choose at least one shop for this person.';
+  }
+  return null;
 }
 
 export async function getUserById(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -56,6 +82,9 @@ export async function createUser(req: Request, res: Response, next: NextFunction
       sendError(res, 'Username already taken', 409);
       return;
     }
+
+    const problem = await accountProblem(role, customRoleId, shopAccess);
+    if (problem) { sendError(res, problem, 400); return; }
 
     const passwordHash = await bcrypt.hash(password, 12);
 
@@ -126,15 +155,19 @@ export async function updateUser(req: Request, res: Response, next: NextFunction
       }
     }
 
+    // What the account will be after this change (the form may send only part of it)
+    const nextRole = req.body.role ?? existing.role;
+    const nextCustomRoleId = req.body.customRoleId ?? existing.customRoleId;
+    if (req.body.role || req.body.customRoleId !== undefined || req.body.shopAccess) {
+      const problem = await accountProblem(nextRole, nextCustomRoleId, req.body.shopAccess);
+      if (problem) { sendError(res, problem, 400); return; }
+    }
+
     const updateData: any = {};
     if (req.body.name) updateData.name = req.body.name;
-    if (req.body.role) {
-      updateData.role = req.body.role;
-      if (req.body.role === 'CUSTOM') {
-        updateData.customRoleId = req.body.customRoleId;
-      } else {
-        updateData.customRoleId = null;
-      }
+    if (req.body.role || req.body.customRoleId !== undefined) {
+      updateData.role = nextRole;
+      updateData.customRoleId = nextRole === 'CUSTOM' ? nextCustomRoleId : null;
     }
     if (req.body.isActive !== undefined) updateData.isActive = req.body.isActive;
     if (req.body.isSuspended !== undefined) updateData.isSuspended = req.body.isSuspended;

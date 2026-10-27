@@ -9,9 +9,9 @@ router.use(authenticate);
 // Today summary — all roles (own data for USER, all data for ADMIN+)
 router.get('/today-summary', getTodaySummary);
 
-// Daily + monthly — ADMIN+ only
-router.get('/daily', requireRole(['ADMIN', 'SUPER_ADMIN']), validateQuery(dailyAnalyticsQuerySchema), getDailyAnalytics);
-router.get('/monthly', requireRole(['ADMIN', 'SUPER_ADMIN']), validateQuery(monthlyAnalyticsQuerySchema), getMonthlyAnalytics);
+// Daily + monthly — admins, and a custom role that may view analytics
+router.get('/daily', requireRole(['ADMIN', 'SUPER_ADMIN'], 'analytics', 'read'), validateQuery(dailyAnalyticsQuerySchema), getDailyAnalytics);
+router.get('/monthly', requireRole(['ADMIN', 'SUPER_ADMIN'], 'analytics', 'read'), validateQuery(monthlyAnalyticsQuerySchema), getMonthlyAnalytics);
 router.post('/adjust', requireRole(['SUPER_ADMIN']), manualAdjust);
 
 export default router;

@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { authenticate, requireRole } from '../../middleware/auth';
+import { Role } from '@prisma/client';
+import { authenticate, requireAccess, requireRole } from '../../middleware/auth';
 import { validate } from '../../utils/validation';
 import { z } from 'zod';
 import {
@@ -10,7 +11,7 @@ import {
 } from './banks.controller';
 
 const router = Router();
-router.use(authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']));
+router.use(authenticate);
 
 // ── Schemas ──────────────────────────────────────────────────────
 const createBankSchema = z.object({
@@ -43,12 +44,16 @@ const resetSchema = z.object({
 });
 
 // ── Routes ──────────────────────────────────────────────────────
-router.get('/', getBanks);
-router.get('/analytics', getBankAnalytics);
+const ADMINS: Role[] = ['ADMIN', 'SUPER_ADMIN'];
 
-// Admin can deposit and adjust
-router.patch('/:id/deposit', validate(depositSchema), depositToBank);
-router.patch('/:id/adjust', validate(adjustSchema), adjustBalance);
+// Viewing: admins, a custom role that may view banks, and a custom role that may change records
+// (it has to pick the account an expense is paid from).
+router.get('/', requireAccess(ADMINS, ['banks', 'read'], ['allRecords', 'write']), getBanks);
+router.get('/analytics', requireAccess(ADMINS, ['banks', 'read']), getBankAnalytics);
+
+// Admin can deposit and adjust; so can a custom role that may change banks
+router.patch('/:id/deposit', requireAccess(ADMINS, ['banks', 'write']), validate(depositSchema), depositToBank);
+router.patch('/:id/adjust', requireAccess(ADMINS, ['banks', 'write']), validate(adjustSchema), adjustBalance);
 
 // Super Admin only — destructive / privileged
 router.post('/', requireRole(['SUPER_ADMIN']), validate(createBankSchema), createBank);

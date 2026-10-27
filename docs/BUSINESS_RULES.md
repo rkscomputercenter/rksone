@@ -9,7 +9,17 @@ Extracted from the code in the production folder (2026-10-21). "Intended" means 
 `USER`, `MANAGER`, `ADMIN`, `SUPER_ADMIN`, `CUSTOM` (permissions per module `{read, write}` from `CustomRole`).
 - `ADMIN`/`SUPER_ADMIN` always have access to both shops; others use `User.shopAccess`.
 - Shop access is enforced in the backend on every list, report, edit, approve and delete (`utils/shop.ts`). A `?shop=` outside the user's access is refused (403); a record in another shop is treated as not found (404).
-- `CUSTOM` permissions are read from the user's `CustomRole` in the database on every request, so changes apply immediately.
+- `CUSTOM` permissions are read from the user's `CustomRole` in the database on every request, so changes apply immediately (the app refreshes its own copy when it returns to the front, at most once a minute).
+- A custom role grants **View** (`read`) or **Change** (`write`, which includes View) per module; the role editor shows them as No access / View / Change. `hasPermission(user, module, action)` in `middleware/auth.ts` is the one rule; routes use `requireAccess`/`requireRole(roles, module, action)`:
+  | Module | View | Change |
+  |---|---|---|
+  | `allRecords` | all staff's transactions and expenses, and their history in the logs (sales and expenses only) | edit/delete others' transactions (today), approve/reject expenses, own expenses approved at once with a bank; also lists banks to pick one |
+  | `banks` | bank list, activity | deposit and adjust (create, rename, set, reset, delete stay `SUPER_ADMIN`) |
+  | `analytics` | daily/monthly analytics, staff performance, data exports | (nothing extra) |
+  | `services` | services page | create/edit services, for the user's own shops |
+  | `expenseCategories` | categories page | create/edit/delete categories |
+  | `salaryLogs` | audit log (all tables) and bill log | (nothing extra) |
+  Viewing never lets someone change anything. Deleting old logs is `ADMIN`+ only. A custom-role account must name an existing role and have at least one shop.
 - A suspended user (`isSuspended`) is refused on every request, not only at the next login or token refresh.
 - Regular users see only their own transactions/expenses; admins see all and may filter by `userId`.
 - Regular users' expense list is always forced to today.

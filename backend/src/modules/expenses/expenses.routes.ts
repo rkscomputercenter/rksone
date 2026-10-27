@@ -12,7 +12,7 @@ router.use(authenticate);
 router.get('/', getExpenses);
 router.post('/', validate(createExpenseSchema), createExpense);
 router.patch('/:id', validate(updateExpenseSchema), updateExpense);
-router.patch('/:id/approve', requireRole(['ADMIN', 'SUPER_ADMIN']), validate(approveExpenseSchema), approveExpense);
+router.patch('/:id/approve', requireRole(['ADMIN', 'SUPER_ADMIN'], 'allRecords', 'write'), validate(approveExpenseSchema), approveExpense);
 router.delete('/:id', requireRole(['SUPER_ADMIN']), deleteExpense);
 
 export default router;

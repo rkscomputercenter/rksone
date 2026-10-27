@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../config/prisma';
 import { withAuditLog } from '../../utils/auditLog';
-import { isAdminOrAbove, isSuperAdmin } from '../../middleware/auth';
+import { hasPermission, isAdminOrAbove, isSuperAdmin } from '../../middleware/auth';
 import { isToday, getISTDayBounds } from '../../utils/time';
 import { canAccessShop, getShopFilter } from '../../utils/shop';
 import {
@@ -84,7 +84,7 @@ export async function createTransaction(req: Request, res: Response, next: NextF
       service = await prisma.service.findUnique({ where: { id: serviceId } });
     } else if (serviceName) {
       const name = serviceName.trim();
-      const mayCreate = name === QUICK_ENTRY_SERVICE || isAdminOrAbove(req.user!, 'services');
+      const mayCreate = name === QUICK_ENTRY_SERVICE || hasPermission(req.user!, 'services', 'write');
       service = await prisma.service.findFirst({ where: { name } });
       if (!service && mayCreate) {
         service = await prisma.service.create({
@@ -155,7 +155,7 @@ export async function updateTransaction(req: Request, res: Response, next: NextF
       return;
     }
 
-    if (existing.userId !== req.user!.userId && !isAdminOrAbove(req.user!, 'allRecords')) {
+    if (existing.userId !== req.user!.userId && !hasPermission(req.user!, 'allRecords', 'write')) {
       sendForbidden(res, 'You can only edit your own transactions.');
       return;
     }
@@ -192,7 +192,7 @@ export async function deleteTransaction(req: Request, res: Response, next: NextF
       return;
     }
 
-    if (existing.userId !== req.user!.userId && !isAdminOrAbove(req.user!, 'allRecords')) {
+    if (existing.userId !== req.user!.userId && !hasPermission(req.user!, 'allRecords', 'write')) {
       sendForbidden(res, 'You can only delete your own transactions.');
       return;
     }

@@ -101,12 +101,9 @@ export async function authenticate(
         return;
       }
       
-      // Update last seen (throttle updates to every 1 min)
+      // Update last seen (throttled to once a minute). Not awaited: the request must not wait for a bookkeeping write.
       if (Date.now() - new Date(session.lastSeen).getTime() > 60000) {
-        await prisma.session.update({
-          where: { id: session.id },
-          data: { lastSeen: new Date() }
-        });
+        prisma.session.update({ where: { id: session.id }, data: { lastSeen: new Date() } }).catch(() => {});
       }
     }
 
@@ -146,59 +143,63 @@ export async function authenticate(
   }
 }
 
+/** The modules a custom role can grant. "Change" (write) always includes "view" (read). */
+export type PermissionAction = 'read' | 'write';
+
 /**
- * Role-based access control middleware factory.
- * Fix #7: All permissions enforced in backend — no frontend trust.
- * 
- * Usage: requireRole(['ADMIN', 'SUPER_ADMIN'])
+ * Does this person hold a module permission?
+ * ADMIN and SUPER_ADMIN hold all of them. MANAGER holds services and expenseCategories.
+ * CUSTOM holds what its role grants, and a "write" grant includes "read".
  */
-export function requireRole(allowedRoles: Role[], requiredModule?: string, requiredAction?: 'read' | 'write') {
+export function hasPermission(user: AuthPayload, module: string, action: PermissionAction = 'read'): boolean {
+  if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') return true;
+  if (user.role === 'MANAGER') return module === 'services' || module === 'expenseCategories';
+  if (user.role === 'CUSTOM') {
+    const perms = user.customPermissions?.[module];
+    if (!perms) return false;
+    return action === 'write' ? !!perms.write : !!(perms.read || perms.write);
+  }
+  return false;
+}
+
+/**
+ * Access gate for a route: the listed roles pass, and so does anyone holding one of the
+ * module permissions, e.g. requireAccess(['ADMIN', 'SUPER_ADMIN'], ['banks', 'read']).
+ * Permissions come from the database on every request (see authenticate), never from the token.
+ */
+export function requireAccess(allowedRoles: Role[], ...grants: Array<[module: string, action: PermissionAction]>) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       sendUnauthorized(res);
       return;
     }
-
-    const rolesArray = allowedRoles;
-
-    if (req.user.role === 'CUSTOM' && requiredModule) {
-      const perms = req.user.customPermissions?.[requiredModule];
-      if (perms) {
-        if (requiredAction === 'write' && perms.write) {
-          next();
-          return;
-        }
-        if (requiredAction === 'read' && perms.read) {
-          next();
-          return;
-        }
-        // If they don't have the specific module permission, it falls through to reject
-      }
-    }
-
-    if (!rolesArray.includes(req.user.role)) {
-      res.status(403).json({
-        success: false,
-        error: `Access denied. Insufficient permissions.`,
-      });
+    if (allowedRoles.includes(req.user.role) || grants.some(([module, action]) => hasPermission(req.user!, module, action))) {
+      next();
       return;
     }
-
-    next();
+    res.status(403).json({ success: false, error: 'Access denied. Insufficient permissions.' });
   };
 }
 
 /**
- * Checks if user has admin-level access (ADMIN or SUPER_ADMIN)
- * or if they have custom permission for a specific module.
+ * Role-based access control middleware factory.
+ * Fix #7: All permissions enforced in backend — no frontend trust.
+ *
+ * Usage: requireRole(['ADMIN', 'SUPER_ADMIN']), or with a module so a custom role can pass too:
+ * requireRole(['ADMIN', 'SUPER_ADMIN'], 'banks', 'read')
+ */
+export function requireRole(allowedRoles: Role[], requiredModule?: string, requiredAction: PermissionAction = 'read') {
+  return requiredModule ? requireAccess(allowedRoles, [requiredModule, requiredAction]) : requireAccess(allowedRoles);
+}
+
+/**
+ * Admin-level access for a module: ADMIN and SUPER_ADMIN always, MANAGER for services and
+ * expense categories, and a custom role that may at least view that module.
+ * (For changing things, use hasPermission(user, module, 'write').)
  */
 export function isAdminOrAbove(user: AuthPayload, module?: string): boolean {
   if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') return true;
-  if (user.role === 'MANAGER' && module && ['services', 'expenseCategories'].includes(module)) return true;
-  if (user.role === 'CUSTOM' && module) {
-    return !!user.customPermissions?.[module]?.read;
-  }
-  return false;
+  return module ? hasPermission(user, module, 'read') : false;
 }
 
 /**

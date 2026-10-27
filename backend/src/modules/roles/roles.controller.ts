@@ -3,13 +3,22 @@ import { prisma } from '../../config/prisma';
 import { sendSuccess, sendError } from '../../utils/response';
 import { z } from 'zod';
 
+/** The modules a role can grant. Anything else is refused so a typo can never look like a permission. */
+export const PERMISSION_MODULES = ['services', 'expenseCategories', 'banks', 'analytics', 'allRecords', 'salaryLogs'] as const;
+
 const createRoleSchema = z.object({
-  name: z.string().min(2),
+  name: z.string().trim().min(2, 'Give the role a name of at least 2 letters').max(60),
   permissions: z.record(z.object({
     read: z.boolean(),
     write: z.boolean()
-  }))
-});
+  })).refine(p => Object.keys(p).every(k => (PERMISSION_MODULES as readonly string[]).includes(k)), 'Unknown permission')
+}).transform(data => ({
+  ...data,
+  // Being allowed to change something includes being allowed to see it
+  permissions: Object.fromEntries(
+    PERMISSION_MODULES.map(m => [m, { read: !!(data.permissions[m]?.read || data.permissions[m]?.write), write: !!data.permissions[m]?.write }])
+  ),
+}));
 
 export const listRoles = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {

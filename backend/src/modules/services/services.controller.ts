@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../config/prisma';
 import { withAuditLog } from '../../utils/auditLog';
-import { getShopFilter } from '../../utils/shop';
+import { canAccessShop, getShopFilter } from '../../utils/shop';
 import { sendSuccess, sendCreated, sendNotFound, sendError, sendForbidden } from '../../utils/response';
 
 export async function getAllServices(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -25,6 +25,9 @@ export async function getAllServices(req: Request, res: Response, next: NextFunc
 
 export async function createService(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    // A price list can only be changed for a shop the person works in
+    if (!canAccessShop(req.user!, req.body.shop ?? 'SHOP_COMPUTER')) { sendForbidden(res, 'You do not have access to this shop'); return; }
+
     const service = await withAuditLog(
       prisma, req.user!.userId, 'CREATE', 'services',
       (s) => s.id, null,
@@ -38,7 +41,8 @@ export async function createService(req: Request, res: Response, next: NextFunct
 export async function updateService(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const existing = await prisma.service.findUnique({ where: { id: req.params.id } });
-    if (!existing) { sendNotFound(res, 'Service'); return; }
+    if (!existing || !canAccessShop(req.user!, existing.shop)) { sendNotFound(res, 'Service'); return; }
+    if (req.body.shop && !canAccessShop(req.user!, req.body.shop)) { sendForbidden(res, 'You do not have access to this shop'); return; }
 
     const updated = await withAuditLog(
       prisma, req.user!.userId, 'UPDATE', 'services',

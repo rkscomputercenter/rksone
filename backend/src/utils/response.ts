@@ -87,6 +87,13 @@ export function globalErrorHandler(
     return;
   }
 
+  // A request body that failed a zod `.parse` inside a controller is the caller's mistake, not a crash
+  if (err.name === 'ZodError') {
+    const issues = (err as unknown as { issues: { message: string }[] }).issues;
+    sendError(res, issues?.[0]?.message || 'The request is not valid.', 400);
+    return;
+  }
+
   console.error(`[ERROR] ${req.method} ${req.path}:`, err.message);
 
   if (err.name === 'PrismaClientKnownRequestError') {
