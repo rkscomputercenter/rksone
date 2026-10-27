@@ -1,6 +1,6 @@
 {
-  "version": "1.0.42",
+  "version": "1.0.43",
   "minVersion": "1.0.0",
   "apkUrl": "https://github.com/rkscomputercenter/rksone/releases/latest/download/RKS_ONE.apk",
-  "releaseNotes": "RKS ONE: new design, new bill printing, and a faster, steadier connection."
+  "releaseNotes": "Faster loading, a new loading screen, logs that fit your phone, and custom roles that work as set."
 }
