@@ -177,10 +177,20 @@ phones only as a new APK, so the app has an update manager and a version number.
 | App | Asks | Downloads from |
 |---|---|---|
 | **1.0.41 and older** (the Shop RKS in the field) | `https://shop-rks.onrender.com/version.json`, then checks the password against the **old** API | `/Shop_RKS_v1.0.41.apk` on the old server (the file name is fixed in the old server's code) |
-| **1.0.42 and newer** (RKS ONE) | `https://rksone.qenbel.site/version.json` | the link from the API (`APK_URL`), after one tap if signed in, or a username and password if not |
+| **1.0.42 and newer** (RKS ONE) | `https://rksone.qenbel.site/version.json` | the link from the API (`APK_URL`), automatically if signed in, or after a username and password if not |
 
 The new app's popup shows when `version` in `version.json` is newer than the app. `minVersion` makes it mandatory
 (no "Later"); "Later" hides it for 6 hours. It re-checks on start, when the app comes back to the front, and every 2 hours.
+
+**1.0.42 hands the link to the phone's browser; 1.0.44 and newer download inside the app.** The native part is
+`android/app/src/main/java/com/shoprks/app/AppUpdatePlugin.java` (registered in `MainActivity`; needs the
+`REQUEST_INSTALL_PACKAGES` permission), used from `src/components/AppUpdater.tsx` through `src/native/appUpdate.ts`:
+a signed-in phone starts downloading as soon as it sees the new version (resuming a half-finished file after a dropped
+connection), shows progress, and Install opens Android's installer. The first time, Android sends the person to
+"Allow from this source" for RKS ONE; coming back continues the install. A downloaded file only counts if it is the
+right size and an RKS ONE APK with a higher versionCode. If the native part is missing or the download keeps failing, the
+popup offers the browser route. 1.0.44 was released with `minVersion` 1.0.44, so every 1.0.42 phone makes one last
+browser update. **Not yet tried on a real phone** at the time of writing: test an update from the previous APK first.
 
 ### Releasing a new version
 1. `cd frontend && npm run version:set -- 1.0.43` sets the version in `package.json`, `public/version.json` and `android/app/build.gradle`

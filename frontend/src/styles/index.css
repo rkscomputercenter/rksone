@@ -924,3 +924,10 @@ td.amount, th.amount { text-align: right; }
 }
 .bottom-nav-sale.active { background: var(--ink-strong); }
 body.keyboard-open .bottom-nav { display: none !important; }
+
+/* Update download progress (AppUpdater) */
+.dl-bar { height: 10px; border-radius: 999px; background: var(--rule-soft); overflow: hidden; }
+.dl-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--ink-strong); transition: width .25s ease; }
+.dl-bar.indeterminate > span { width: 40% !important; animation: dl-slide 1.2s ease-in-out infinite; }
+@keyframes dl-slide { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
+@media (prefers-reduced-motion: reduce) { .dl-bar > span { transition: none; } .dl-bar.indeterminate > span { animation: none; margin-left: 30%; } }
