@@ -11,6 +11,12 @@ function getCurrentApkUrl(): string {
   return env.APK_URL;
 }
 
+/** What the app needs to know about a custom-role account: which role, its name, and what it may open. */
+function customRoleFields(role: string, customRole: { id: string; name: string; permissions: unknown } | null | undefined) {
+  if (role !== 'CUSTOM' || !customRole) return {};
+  return { customRoleId: customRole.id, customRoleName: customRole.name, customPermissions: customRole.permissions };
+}
+
 export async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { username, password } = req.body as { username: string; password: string };
@@ -113,11 +119,14 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
     sendSuccess(res, {
       token,
       refreshToken,
-      user: {        id: user.id,
+      user: {
+        id: user.id,
         name: user.name,
         username: user.username,
         role: user.role,
         shopAccess: (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') ? ['SHOP_COMPUTER', 'SHOP_XEROX'] : user.shopAccess,
+        // The app saves this user as it is: without these a custom-role person sees no extra pages until the next refresh
+        ...customRoleFields(user.role, user.customRole),
       },
     }, 200, undefined, 'Login successful');
   } catch (err) {
@@ -188,7 +197,7 @@ export async function getMe(req: Request, res: Response, next: NextFunction): Pr
         transactions: todayTransactions._count,
         revenue: todayTransactions._sum.totalPrice || 0,
       },
-      customPermissions: user.customRole?.permissions,
+      ...customRoleFields(user.role, user.customRole),
       recentActivity: recentLogs,
     };
     delete (responseData as any).customRole;

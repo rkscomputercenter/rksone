@@ -4,6 +4,7 @@ import Layout from '../../components/layout/Layout';
 import { usersApi, apiClient } from '../../api';
 import type { User, Role, Shop } from '../../types';
 import { PageLoading } from '../../components/ui/Loading';
+import { roleLabel } from '../../utils/roleLabel';
 
 interface UserModalProps { user?: User; onClose: () => void; onSave: () => void; }
 
@@ -156,10 +157,9 @@ export default function UsersPage() {
   };
   useEffect(() => { load(); }, []);
 
-  const roleChip = (r: Role) => {
-    const label: Record<string, string> = { USER: 'Staff', MANAGER: 'Manager', ADMIN: 'Admin', SUPER_ADMIN: 'Super admin', CUSTOM: 'Custom role' };
+  const roleChip = (r: Role, customRoleName?: string | null) => {
     const cls = r === 'SUPER_ADMIN' || r === 'ADMIN' ? 'badge-gold' : '';
-    return <span className={`badge ${cls}`}>{label[r] ?? r}</span>;
+    return <span className={`badge ${cls}`}>{roleLabel(r, customRoleName)}</span>;
   };
 
   const handleDelete = async (id: string) => {
@@ -201,7 +201,7 @@ export default function UsersPage() {
                     <div style={{ fontWeight: 600 }}>{u.name}</div>
                     <div className="text-xs text-muted">{u.username}</div>
                   </td>
-                  <td>{roleChip(u.role)}</td>
+                  <td>{roleChip(u.role, u.customRole?.name)}</td>
                   <td className="text-muted">{u.role === 'ADMIN' || u.role === 'SUPER_ADMIN' || (u.shopAccess?.length ?? 0) > 1 ? 'Both' : u.shopAccess?.[0] === 'SHOP_XEROX' ? 'Xerox' : 'Computer'}</td>
                   <td>
                     <span className="flex gap-8" style={{ flexWrap: 'wrap' }}>

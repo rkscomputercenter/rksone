@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { api, auth, createBank, createPendingExpense, createService, createUser, prisma, resetDb, bankBalance } from './helpers';
+import { PASSWORD, api, auth, createBank, createPendingExpense, createService, createUser, prisma, resetDb, bankBalance } from './helpers';
 
 beforeEach(resetDb);
 
@@ -227,5 +227,36 @@ describe('custom role: accounts and roles', () => {
 
     await prisma.customRole.updateMany({ data: { permissions: { banks: { read: false, write: false } } } });
     expect((await api().get('/api/banks').set(auth(worker.token))).status).toBe(403);
+  });
+});
+
+describe('custom role: what the app is told at sign-in', () => {
+  it('sends the role name and its permissions in the sign-in response, not only in the token', async () => {
+    const person = await createUser('CUSTOM', { permissions: { banks: change, analytics: view } });
+    const dbUser = await prisma.user.findUniqueOrThrow({ where: { id: person.id }, include: { customRole: true } });
+
+    const login = await api().post('/api/auth/login').send({ username: dbUser.username, password: PASSWORD });
+    expect(login.status).toBe(200);
+    expect(login.body.data.user.customRoleName).toBe(dbUser.customRole!.name);
+    expect(login.body.data.user.customPermissions).toEqual({ banks: change, analytics: view });
+
+    const me = await api().get('/api/auth/me').set(auth(person.token));
+    expect(me.body.data.customRoleName).toBe(dbUser.customRole!.name);
+    expect(me.body.data.customPermissions).toEqual({ banks: change, analytics: view });
+  });
+
+  it('sends no role fields for an ordinary account', async () => {
+    const staff = await createUser('USER');
+    const me = await api().get('/api/auth/me').set(auth(staff.token));
+    expect(me.body.data.customRoleName).toBeUndefined();
+    expect(me.body.data.customPermissions).toBeUndefined();
+  });
+
+  it('lists each custom-role person with their role name', async () => {
+    const boss = await createUser('SUPER_ADMIN');
+    const person = await createUser('CUSTOM', { permissions: { banks: view } });
+    const dbUser = await prisma.user.findUniqueOrThrow({ where: { id: person.id }, include: { customRole: true } });
+    const list = await api().get('/api/users').set(auth(boss.token));
+    expect(list.body.data.find((u: any) => u.id === person.id).customRole.name).toBe(dbUser.customRole!.name);
   });
 });

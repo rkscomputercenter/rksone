@@ -7,7 +7,7 @@ import { prisma } from '../src/config/prisma';
 export { app, prisma };
 export const api = () => request(app);
 
-const PASSWORD = 'test-password';
+export const PASSWORD = 'test-password';
 
 /** Empties every table so each test starts from a known state. */
 export async function resetDb(): Promise<void> {

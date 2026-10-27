@@ -10,6 +10,9 @@ export interface User {
   username: string;
   role: Role;
   customRoleId?: string | null;
+  /** Name of the custom role (custom-role accounts only), for showing instead of "Custom role" */
+  customRoleName?: string | null;
+  customRole?: { name: string } | null;
   customPermissions?: Record<string, { read: boolean; write: boolean }>;
   shopAccess: Shop[];
   isActive: boolean;

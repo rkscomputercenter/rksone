@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { roleLabel } from '../../utils/roleLabel';
 
 interface NavItem {
   icon: LucideIcon;
@@ -30,10 +31,6 @@ interface SidebarProps {
   /** The sandwich button at the top of the menu: hides it (desktop) or closes the drawer (phone) */
   onToggle: () => void;
 }
-
-const ROLE_LABEL: Record<string, string> = {
-  USER: 'Staff', MANAGER: 'Manager', ADMIN: 'Admin', SUPER_ADMIN: 'Super admin', CUSTOM: 'Custom role',
-};
 
 const SECTIONS: NavSection[] = [
   {
@@ -172,7 +169,7 @@ export default function Sidebar({ isOpen, onClose, onToggle }: SidebarProps) {
           <span className="avatar" aria-hidden="true">{user?.name?.[0]?.toUpperCase()}</span>
           <span className="person-text">
             <span className="person-name">{user?.name}</span>
-            <span className="person-role">{ROLE_LABEL[role ?? ''] ?? role}</span>
+            <span className="person-role">{roleLabel(role, user?.customRoleName)}</span>
           </span>
           <ChevronRight size={16} className="person-go" aria-hidden="true" />
         </button>

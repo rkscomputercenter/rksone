@@ -16,6 +16,7 @@ export async function getAllUsers(req: Request, res: Response, next: NextFunctio
       select: {
         id: true, name: true, username: true, role: true, customRoleId: true,
         isActive: true, isSuspended: true, createdAt: true, updatedAt: true, shopAccess: true,
+        customRole: { select: { name: true } },
         _count: { select: { transactions: true } },
       },
       orderBy: { createdAt: 'asc' },

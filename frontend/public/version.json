@@ -1,6 +1,6 @@
 {
-  "version": "1.0.44",
+  "version": "1.0.45",
   "minVersion": "1.0.44",
   "apkUrl": "https://github.com/rkscomputercenter/rksone/releases/latest/download/RKS_ONE.apk",
-  "releaseNotes": "Updates now download inside the app. Also faster loading, a new loading screen, logs that fit your phone, and custom roles that work as set."
+  "releaseNotes": "Custom-role accounts now see the pages they were given, and the menu shows their role name."
 }
